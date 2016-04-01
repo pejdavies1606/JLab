@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNameSpaceSchemaLocation="http://cern.ch/service-spi/app/releases/GDML/Schema/gdml.xsd">
+  <define/>
+  <materials>
+    <material Z="1" name="mat_vacuum">
+      <D unit="g/cm3" value="0.0"/>
+      <atom unit="g/mole" value="0.0"/>
+    </material>
+  </materials>
+  <solids>
+    <box lunit="cm" name="sol_box1" x="2.0" y="4.0" z="6.0"/>
+    <box lunit="cm" name="sol_box2" x="1.0" y="1.0" z="1.0"/>
+    <box lunit="cm" name="sol_top" x="10.0" y="10.0" z="10.0"/>
+  </solids>
+  <structure>
+    <volume name="vol_box1">
+      <materialref ref="mat_vacuum"/>
+      <solidref ref="sol_box1"/>
+    </volume>
+    <volume name="vol_box2">
+      <materialref ref="mat_vacuum"/>
+      <solidref ref="sol_box2"/>
+    </volume>
+    <volume name="vol_top">
+      <materialref ref="mat_vacuum"/>
+      <solidref ref="sol_top"/>
+      <physvol>
+        <volumeref ref="vol_box1"/>
+        <position unit="cm" x="2.0" y="4.0" z="6.0"/>
+        <rotation unit="deg" x="30.0" y="0.0" z="0.0"/>
+      </physvol>
+      <physvol>
+        <volumeref ref="vol_box2"/>
+        <position unit="cm" x="1.0" y="1.0" z="1.0"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="default" version="1.0">
+    <world ref="vol_top"/>
+  </setup>
+</gdml>
