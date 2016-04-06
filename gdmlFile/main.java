@@ -2,66 +2,102 @@ package volume_geometry;
 
 import org.jlab.geom.geant.Geant4Basic;
 
-import java.util.List;
-
-public class main {
-
-	public static void main(String[] args) {
-
-		//System.out.println("defining Geant4Basic geometry");
-		/*Geant4Basic top = new Geant4Basic("top", "box", 10.0, 10.0, 10.0 );
-		Geant4Basic box1 = new Geant4Basic("box1", "box", 2.0, 4.0, 6.0 );
-		Geant4Basic box2 = new Geant4Basic("box2", "box", 1.0, 1.0, 1.0 );
-		top.getChildren().add(box1);
-		top.getChildren().add(box2);
-
-		box1.setPosition( -2.0, -2.0, -2.0 );
-		box1.setRotation("xyz", 30.0, 0.0, 0.0); // assume degrees?
-		box2.setPosition( 1.0, 1.0, 1.0 );
+public class main
+{
+	public static void main(String[] args)
+	{
+		// ---------------
+		// length units
+		// ===============
+		// CCDB: mm
+		// Geant4Basic: cm
+		// ---------------
+		// angle units
+		// =====
+		// Geant4Basic: rad, but displayed as deg on Geant4Basic.toString()
+		// GDML: rad (default=deg)
 		
-		System.out.println( top.toString() );
-		System.out.println( box1.toString() );
-		System.out.println( box2.toString() );*/
+		ConstantsGeom.Load();
+		//System.exit( 0 );
 		
-		//DatabaseConstantProvider cp = new DatabaseConstantProvider( 10, "default");
+		double moduleLength = ConstantsGeom.MODULELENGTH / 10.0,  // mm -> cm
+				moduleWidth = ConstantsGeom.ACTIVESENWIDTH / 10.0, // total sensor width, not pitch adapter width
+				moduleHeight = ConstantsGeom.SILICONTHICK / 10.0;
 		
-		/*Constants.Load();
-		// module in region 1 sector 1
-		double moduleLength = Constants.MODULELENGTH,
-				moduleWidth = Constants.ACTIVESENWIDTH, // total sensor width, not pitch adaptor with
-				moduleHeight = Constants.LAYRGAP,
-				layerGap = 2.5+2*(0.190 + 0.078 + 0.065 + 0.5*Constants.SILICONWIDTH );
+		System.out.println("defining Geant4Basic geometry");
+		System.out.printf("moduleLength=%8.3e\n", moduleLength );
+		System.out.printf("moduleWidth =%8.3e\n", moduleWidth );
+		System.out.printf("moduleHeight=%8.3e\n", moduleHeight );
 		
-		System.out.printf("moduleLength =%8.3f\n", moduleLength );
-		System.out.printf("moduleWidth  =%8.3f\n", moduleWidth );
-		System.out.printf("moduleHeight =%8.3f\n", moduleHeight );
-		System.out.printf("layerGap     =%8.3f\n", layerGap );
-		System.out.printf("diff         =%8.3f\n", moduleHeight - layerGap );*/
-		
-		double topSide = 1000.0;
+		double topSide = 100.0; // cm
 		
 		Geant4Basic top = new Geant4Basic("top", "box", topSide, topSide, topSide );
-		//Geant4Basic module = new Geant4Basic("module", "box", moduleLength, moduleWidth, moduleHeight );
-		//top.getChildren().add( module );
+		//System.out.println( top.toString() );
 		
-		//module.setPosition( topSide/2, topSide/2, topSide/2 );
+		Geant4Basic target = new Geant4Basic("target", "eltube", 1.5240, 1.5240, 3.0 ); // cm
+		top.getChildren().add( target );
 		
-		System.out.println( top.toString() );
-		//System.out.println( module.toString() );
+		Geant4Basic refX = new Geant4Basic("refX", "box", 1.0, 0.25, 0.25 );
+		refX.setPosition( 0.5, 0.0, 0.0 );
+		top.getChildren().add( refX );
 		
-		//cp.disconnect();
-		System.exit(0);
+		Geant4Basic refY = new Geant4Basic("refY", "box", 0.25, 1.0, 0.25 );
+		refY.setPosition( 0.0, 0.5, 0.0 );
+		top.getChildren().add( refY );
+		
+		Geant4Basic refZ = new Geant4Basic("refZ", "box", 0.25, 0.25, 10.0 );
+		refZ.setPosition( 0.0, 0.0, 5.0 );
+		top.getChildren().add( refZ );
+		
+		int nReg = ConstantsGeom.NREG;
+		int[] nSect = ConstantsGeom.NSECT;
+		double[] regionZ = ConstantsGeom.Z0;
+		
+		for( int r = 0; r < nReg; r++ )
+		{
+			double[] sectorRadius = ConstantsGeom.MODULERADIUS[r];
+			
+			for( int s = 0; s < nSect[r]; s++ )
+				for( int l = 0; l < ConstantsGeom.NSLAYR; l++ )
+				{
+					String sl = ""; // super layer label
+					switch( l )
+					{
+					case 0:
+						sl = "u"; // lower / inner
+						break;
+					case 1:
+						sl = "v"; // upper / outer
+						break;
+					}
+					Geant4Basic module = new Geant4Basic("module_r"+(r+1)+"s"+(s+1)+sl, "box", moduleWidth, moduleHeight, moduleLength );
+					
+					double phi = 2*Math.PI/nSect[r]*s + Math.PI;
+					double x = sectorRadius[l]*Math.cos(phi + Math.PI/2) / 10.0;
+					double y = sectorRadius[l]*Math.sin(phi + Math.PI/2) / 10.0;
+					double z = regionZ[r] / 10.0 + moduleLength/2;
+					
+					module.setPosition( x, y, z );
+					module.setRotation("xyz", 0.0, 0.0, -phi );
+					top.getChildren().add( module );
+					//System.out.println( module.toString() );
+				}
+		}
+		
+		//System.exit(0);
 
-		/*VolumeExporter gdml = VolumeExporterFactory.createVolumeExporter("gdml");
+		IVolumeExporter gdml = VolumeExporterFactory.createVolumeExporter("gdml");
 		//GdmlFile gdml = new GdmlFile();
 		System.out.println("constructed GdmlFile");
-		gdml.setVerbose( true );
+		//gdml.setVerbose( true );
+		//gdml.setPositionLoc("local");
+		//gdml.setRotationLoc("local");
 		
-		//gdml.addTopVolume( top );
+		gdml.setAngleUnit("rad");
+		gdml.addTopVolume( top, "mat_vacuum" );
 		gdml.writeFile("test");
 		
-		cp.disconnect();
-		System.out.println("done");*/
+		System.out.println("done");
 
 	}
 

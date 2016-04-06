@@ -20,14 +20,15 @@ import org.w3c.dom.NodeList;
 
 import org.jlab.geom.geant.Geant4Basic;
 
-public class GdmlFile implements IVolumeExporter {
-	
+public class GdmlFile implements IVolumeExporter
+{
 	private DocumentBuilderFactory mDocFactory;
 	private DocumentBuilder mDocBuilder;
 	private Document mDoc;
 	private Element mRoot, mDefine, mMaterials, mSolids, mStructure, mSetup;
 	private boolean mVerbose = false;
-	
+	private String mPositionLoc = "global", mRotationLoc = "global";
+	private String mAngleUnit = "deg";
 	
 	
 	public GdmlFile() throws ParserConfigurationException
@@ -72,9 +73,40 @@ public class GdmlFile implements IVolumeExporter {
 		mVerbose = aBool;
 	}
 	
+	public void setPositionLoc( String aLoc )
+	{
+		mPositionLoc = aLoc.toLowerCase();
+	}
+	
+	public void setRotationLoc( String aLoc )
+	{
+		mRotationLoc = aLoc.toLowerCase();
+	}
+	
+	public void setAngleUnit( String aAngleUnit ) throws IllegalArgumentException
+	{
+		switch( aAngleUnit )
+		{
+		case "deg":
+		case "rad":
+			mAngleUnit = aAngleUnit;
+			break;
+		default:
+			throw new IllegalArgumentException("unknown unit: "+aAngleUnit );
+		}
+	}
+	
 	public void addTopVolume( Geant4Basic aTopVol )
 	{ // from VolumeExporter interface
 		this.addLogicalTree( aTopVol );
+		this.addPhysicalTree( aTopVol );
+		this.addWorld( aTopVol.getName() );
+	}
+	
+	public void addTopVolume( Geant4Basic aTopVol, String aMatRef )
+	{ // from VolumeExporter interface
+		this.addMaterialPreset( aMatRef );
+		this.addLogicalTree( aTopVol, aMatRef );
 		this.addPhysicalTree( aTopVol );
 		this.addWorld( aTopVol.getName() );
 	}
@@ -90,20 +122,92 @@ public class GdmlFile implements IVolumeExporter {
 	
 	
 	
+	public void addPosition( String aName, double[] aPosition, String aUnits )
+	{
+		Element position = mDoc.createElement("position");
+		position.setAttribute("name", aName );
+		position.setAttribute("x", Double.toString( aPosition[0] ) );
+		position.setAttribute("y", Double.toString( aPosition[1] ) );
+		position.setAttribute("z", Double.toString( aPosition[2] ) );
+		position.setAttribute("unit", aUnits );
+		mDefine.appendChild( position );
+		
+		if(mVerbose) { System.out.println("added position \""+ aName +"\""); }
+	}
+	
+	
+	
+	public void addRotation( String aName, double[] aRotation, String aOrder, String aUnits )
+	{
+		Element rotation = mDoc.createElement("rotation");
+		rotation.setAttribute("name", aName );
+		switch( aOrder )
+		{
+		case "xyz":
+			rotation.setAttribute("x", Double.toString( aRotation[0] ) );
+			rotation.setAttribute("y", Double.toString( aRotation[1] ) );
+			rotation.setAttribute("z", Double.toString( aRotation[2] ) );
+			break;
+			
+		case "yzx":
+			rotation.setAttribute("y", Double.toString( aRotation[0] ) );
+			rotation.setAttribute("z", Double.toString( aRotation[1] ) );
+			rotation.setAttribute("x", Double.toString( aRotation[2] ) );
+			break;
+			
+		case "zxy":
+			rotation.setAttribute("z", Double.toString( aRotation[0] ) );
+			rotation.setAttribute("x", Double.toString( aRotation[1] ) );
+			rotation.setAttribute("y", Double.toString( aRotation[2] ) );
+			break;
+			
+		case "zyx":
+			rotation.setAttribute("z", Double.toString( aRotation[0] ) );
+			rotation.setAttribute("y", Double.toString( aRotation[1] ) );
+			rotation.setAttribute("x", Double.toString( aRotation[2] ) );
+			break;
+			
+		case "yxz":
+			rotation.setAttribute("y", Double.toString( aRotation[0] ) );
+			rotation.setAttribute("x", Double.toString( aRotation[1] ) );
+			rotation.setAttribute("z", Double.toString( aRotation[2] ) );
+			break;
+			
+		default:
+			throw new IllegalArgumentException("unknown order \""+ aOrder +"\"");
+		}
+		rotation.setAttribute("unit", aUnits );
+		mDefine.appendChild( rotation );
+		
+		if(mVerbose) { System.out.println("added position \""+ aName +"\""); }
+	}
+	
+	
+	
 	public void addMaterial( String aName, int aZ, double aDensity, String aDensityUnit, double aAtom, String aAtomUnit ) throws IllegalArgumentException 
 	{		
-		// is this too many throws?
-		if( aName.isEmpty() ) {
+		if( aName.isEmpty() )
+		{
 			throw new IllegalArgumentException("empty String aName");
-		} else if( aZ < 1 ) {
+		}
+		else if( aZ < 1 )
+		{
 			throw new IllegalArgumentException("zero/negative aZ");
-		} else if( aDensity < 0.0) {
+		}
+		else if( aDensity < 0.0)
+		{
 			throw new IllegalArgumentException("negative density");
-		} else if( aDensityUnit.isEmpty() ) {
+		}
+		else if( aDensityUnit.isEmpty() )
+		{
 			throw new IllegalArgumentException("empty String aDensityUnit");
-		} else if( aAtom < 0.0 ) {
+		}
+		else if( aAtom < 0.0 )
+		{
 			throw new IllegalArgumentException("negative aAtom");
-		} else if( aAtomUnit.isEmpty() ) {
+		}
+		else if( aAtomUnit.isEmpty() )
+		{
 			throw new IllegalArgumentException("empty String aAtomUnit");
 		}
 		
@@ -132,16 +236,18 @@ public class GdmlFile implements IVolumeExporter {
 	
 	public void addMaterialPreset( String aName ) throws IllegalArgumentException
 	{
-		if( aName.isEmpty() ) {
+		if( aName.isEmpty() )
+		{
 			throw new IllegalArgumentException("empty String");
 		}
 		
 		aName.toLowerCase();
-		switch( aName ) {
-		
+		switch( aName )
+		{		
 		case "mat_vacuum":
-			this.addMaterial( aName, 1, 0.0, "g/cm3", 0.0,"g/mole");
+			this.addMaterial( aName, 1, 0.0, "g/cm3", 0.0, "g/mole");
 			break;
+			
 		default:
 			throw new IllegalArgumentException("material: \""+ aName +"\"");
 		}
@@ -151,7 +257,8 @@ public class GdmlFile implements IVolumeExporter {
 	
 	public void addSolid( Geant4Basic aSolid ) throws IllegalArgumentException 
 	{
-		if( aSolid == null ) {
+		if( aSolid == null )
+		{
 			throw new IllegalArgumentException("empty Geant4Basic"); // should this be NullPointerException?
 		}
 		
@@ -161,12 +268,20 @@ public class GdmlFile implements IVolumeExporter {
 		String solRef = "sol_"+ aSolid.getName().toLowerCase();
 		solid.setAttribute("name", solRef );
 		
-		switch( type ) {
+		switch( type )
+		{
 		case "box":
 			solid.setAttribute("x", Double.toString( aSolid.getParameters()[0] ) );
 			solid.setAttribute("y", Double.toString( aSolid.getParameters()[1] ) );
 			solid.setAttribute("z", Double.toString( aSolid.getParameters()[2] ) );
 			break;
+			
+		case "eltube":
+			solid.setAttribute("dx", Double.toString( aSolid.getParameters()[0] ) );
+			solid.setAttribute("dy", Double.toString( aSolid.getParameters()[1] ) );
+			solid.setAttribute("dz", Double.toString( aSolid.getParameters()[2] ) );
+			break;
+			
 		default:
 			throw new IllegalArgumentException("type: \""+ type +"\"");
 		}
@@ -181,9 +296,11 @@ public class GdmlFile implements IVolumeExporter {
 	
 	public void addLogicalVolume( String aMaterialRef, Geant4Basic aSolid ) throws NullPointerException, IllegalArgumentException
 	{		
-		if( aMaterialRef.isEmpty() ) {
+		if( aMaterialRef.isEmpty() )
+		{
 			throw new IllegalArgumentException("empty String");
-		} else if( aSolid == null ) {
+		} else if( aSolid == null )
+		{
 			throw new IllegalArgumentException("empty Geant4Basic");
 		}
 		
@@ -194,7 +311,8 @@ public class GdmlFile implements IVolumeExporter {
 		// check that solid exists
 		String solRef = "sol_"+ solName;
 		Element sol = _findChildByName( mSolids, solRef );
-		if( sol == null ) {
+		if( sol == null )
+		{
 			throw new NullPointerException("could not find solid \""+ solRef +"\"");
 		}
 		
@@ -218,7 +336,8 @@ public class GdmlFile implements IVolumeExporter {
 	
 	public void addLogicalVolume( Geant4Basic aSolid ) throws NullPointerException, IllegalArgumentException
 	{		
-		if( aSolid == null ) {
+		if( aSolid == null )
+		{
 			throw new IllegalArgumentException("empty Geant4Basic");
 		}
 		
@@ -229,7 +348,8 @@ public class GdmlFile implements IVolumeExporter {
 		// check that solid exists
 		String solRef = "sol_"+ solName;
 		Element sol = _findChildByName( mSolids, solRef );
-		if( sol == null ) {
+		if( sol == null )
+		{
 			throw new NullPointerException("could not find solid \""+ solRef +"\"");
 		}
 		
@@ -250,9 +370,10 @@ public class GdmlFile implements IVolumeExporter {
 	
 	// recursively iterate over all children to add logical volumes in the correct order (children first)
 	public void addLogicalTree( Geant4Basic aNode, String aMatRef ) 
-	{ // global material aMatRef		
+	{ // global material aMatRef
 		List<Geant4Basic> children = aNode.getChildren();
-		for( int i = 0; i < children.size(); i++ ) {
+		for( int i = 0; i < children.size(); i++ )
+		{
 
 			Geant4Basic child = children.get( i );
 			this.addLogicalTree( child, aMatRef ); // recursive
@@ -266,7 +387,8 @@ public class GdmlFile implements IVolumeExporter {
 	public void addLogicalTree( Geant4Basic aNode ) 
 	{ // global material aMatRef		
 		List<Geant4Basic> children = aNode.getChildren();
-		for( int i = 0; i < children.size(); i++ ) {
+		for( int i = 0; i < children.size(); i++ )
+		{
 
 			Geant4Basic child = children.get( i );
 			this.addLogicalTree( child ); // recursive
@@ -282,11 +404,16 @@ public class GdmlFile implements IVolumeExporter {
 	
 	public void addPhysicalVolume( String aParentName, Geant4Basic aSolid, String aAngleUnit ) throws NullPointerException, IllegalArgumentException 
 	{		
-		if( aParentName.isEmpty() ) {
+		if( aParentName.isEmpty() )
+		{
 			throw new IllegalArgumentException("empty String aParentName");
-		} else if( aAngleUnit.isEmpty() ) {
+		}
+		else if( aAngleUnit.isEmpty() )
+		{
 			throw new IllegalArgumentException("empty String aAngleUnit");
-		} else if( aSolid == null) {
+		}
+		else if( aSolid == null)
+		{
 			throw new IllegalArgumentException("empty Geant4Basic");
 		}
 		
@@ -309,22 +436,54 @@ public class GdmlFile implements IVolumeExporter {
 		String selfLogVolRef = "vol_"+ aSolid.getName().toLowerCase();
 		// check that self logical volume exists
 		Element selfLogVol = _findChildByName( mStructure, selfLogVolRef );
-		if( selfLogVol == null ) {
+		if( selfLogVol == null )
+		{
 			throw new NullPointerException("could not find logical volume \""+ selfLogVolRef +"\"");
 		}
 		volumeref.setAttribute("ref", selfLogVolRef );
 		physvol.appendChild( volumeref );
 		
 		// /structure/volume/physvol/position
-		Element position = mDoc.createElement( "position" );
-		position.setAttribute("x", Double.toString( aSolid.getParameters()[0] ) );
-		position.setAttribute("y", Double.toString( aSolid.getParameters()[1] ) );
-		position.setAttribute("z", Double.toString( aSolid.getParameters()[2] ) );
-		position.setAttribute("unit", aSolid.getUnits() );
-		physvol.appendChild( position );
+		double[] pos = aSolid.getPosition();
+		boolean posAllZero = true;
+		
+		for( int i = 0; i < 3; i++)
+		{
+			if( pos[i] != 0.0 )
+			{
+				posAllZero = false;
+				break;
+			}
+		}
+		
+		if( !posAllZero )
+		{
+			switch( mPositionLoc )
+			{
+			case "local":
+				Element position = mDoc.createElement( "position" );
+				position.setAttribute( "name", "pos_"+ aSolid.getName() +"_in_"+ aParentName );
+				position.setAttribute("x", Double.toString( aSolid.getPosition()[0] ) );
+				position.setAttribute("y", Double.toString( aSolid.getPosition()[1] ) );
+				position.setAttribute("z", Double.toString( aSolid.getPosition()[2] ) );
+				position.setAttribute("unit", aSolid.getUnits() );
+				physvol.appendChild( position );
+				break;
+				
+			case "global":
+				Element positionRef = mDoc.createElement( "positionref" );
+				String positionName = "pos_"+ aSolid.getName() +"_in_"+ aParentName;
+				this.addPosition( positionName, aSolid.getPosition(), aSolid.getUnits() );
+				positionRef.setAttribute("ref", positionName );
+				physvol.appendChild( positionRef );
+				break;
+				
+			default:
+				throw new IllegalArgumentException("positionLoc: \""+ mPositionLoc +"\"");
+			}
+		}
 		
 		// /structure/volume/physvol/rotation
-		Element rotation = mDoc.createElement( "rotation" );
 		double[] rot = aSolid.getRotation();
 		boolean rotAllZero = true;
 		
@@ -336,11 +495,29 @@ public class GdmlFile implements IVolumeExporter {
 		}
 		
 		if( !rotAllZero ) { // no need to write a blank line that doesn't do anything
-			rotation.setAttribute("x", Double.toString( aSolid.getRotation()[0] ) );
-			rotation.setAttribute("y", Double.toString( aSolid.getRotation()[1] ) );
-			rotation.setAttribute("z", Double.toString( aSolid.getRotation()[2] ) );
-			rotation.setAttribute("unit", aAngleUnit );
-			physvol.appendChild( rotation );
+			switch( mRotationLoc )
+			{
+			case "local":
+				Element rotation = mDoc.createElement( "rotation" );
+				rotation.setAttribute( "name", "rot_"+ aSolid.getName() +"_in_"+ aParentName );
+				rotation.setAttribute("x", Double.toString( aSolid.getRotation()[0] ) );
+				rotation.setAttribute("y", Double.toString( aSolid.getRotation()[1] ) );
+				rotation.setAttribute("z", Double.toString( aSolid.getRotation()[2] ) );
+				rotation.setAttribute("unit", aAngleUnit );
+				physvol.appendChild( rotation );
+			break;
+			
+			case "global":
+				Element rotationRef = mDoc.createElement( "rotationref" );
+				String rotationName = "rot_"+ aSolid.getName() +"_in_"+ aParentName;
+				this.addRotation( rotationName, aSolid.getRotation(), aSolid.getRotationOrder(), aAngleUnit );
+				rotationRef.setAttribute("ref", rotationName );
+				physvol.appendChild( rotationRef );
+				break;
+				
+			default:
+				throw new IllegalArgumentException("rotationLoc: \""+ mRotationLoc +"\"");
+			}
 		}
 		
 		if(mVerbose) { System.out.println("added physical volume \""+ selfLogVolRef +"\" to logical volume \""+ parentLogVolRef +"\""); }
@@ -356,7 +533,7 @@ public class GdmlFile implements IVolumeExporter {
 			Geant4Basic child = children.get( i );
 
 			try {
-				this.addPhysicalVolume( aNode.getName(), child, "deg" );
+				this.addPhysicalVolume( aNode.getName(), child, mAngleUnit );
 				
 			} catch( NullPointerException e ) {
 				e.printStackTrace();
@@ -412,7 +589,7 @@ public class GdmlFile implements IVolumeExporter {
 		transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
 		transformer.transform(source, result);
 
-		if(mVerbose) { System.out.println("saved file \""+ filename +"\'"); }
+		System.out.println("wrote file \""+ filename +"\"");
 	}
 	
 	
