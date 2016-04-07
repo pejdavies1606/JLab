@@ -17,12 +17,12 @@ public class main
 		// Geant4Basic: rad, but displayed as deg on Geant4Basic.toString()
 		// GDML: rad (default=deg)
 		
-		ConstantsGeom.Load();
+		ConstantsCcdb.Load();
 		//System.exit( 0 );
 		
-		double moduleLength = ConstantsGeom.MODULELENGTH / 10.0,  // mm -> cm
-				moduleWidth = ConstantsGeom.ACTIVESENWIDTH / 10.0, // total sensor width, not pitch adapter width
-				moduleHeight = ConstantsGeom.SILICONTHICK / 10.0;
+		double moduleLength = ConstantsCcdb.MODULELENGTH / 10.0,  // mm -> cm
+				moduleWidth = ConstantsCcdb.ACTIVESENWIDTH / 10.0, // total sensor width, not pitch adapter width
+				moduleHeight = ConstantsCcdb.SILICONTHICK / 10.0;
 		
 		System.out.println("defining Geant4Basic geometry");
 		System.out.printf("moduleLength=%8.3e\n", moduleLength );
@@ -49,16 +49,16 @@ public class main
 		refZ.setPosition( 0.0, 0.0, 5.0 );
 		top.getChildren().add( refZ );
 		
-		int nReg = ConstantsGeom.NREG;
-		int[] nSect = ConstantsGeom.NSECT;
-		double[] regionZ = ConstantsGeom.Z0;
+		int nReg = ConstantsCcdb.NREG;
+		int[] nSect = ConstantsCcdb.NSECT;
+		double[] regionZ = ConstantsCcdb.Z0;
 		
 		for( int r = 0; r < nReg; r++ )
 		{
-			double[] sectorRadius = ConstantsGeom.MODULERADIUS[r];
+			double[] sectorRadius = ConstantsCcdb.MODULERADIUS[r];
 			
 			for( int s = 0; s < nSect[r]; s++ )
-				for( int l = 0; l < ConstantsGeom.NSLAYR; l++ )
+				for( int l = 0; l < ConstantsCcdb.NSLAYR; l++ )
 				{
 					String sl = ""; // super layer label
 					switch( l )
