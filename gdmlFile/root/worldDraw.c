@@ -5,27 +5,28 @@ void worldDraw() {
     TGeoManager *geom = TGeoManager::Import("test.gdml");
 
     TList *matList = geom->GetListOfMaterials();
-    //cout << matList << endl;
-    TIter next( matList );
-    //TObject *mat;
-    //TGeoMaterial *mat;
-    /*mat = (TGeoMaterial) next();
-    cout << mat << endl;
-    mat = (TGeoMaterial) next();
-    cout << mat << endl;*/
-    while( mat = (TGeoMaterial*) next() ) { mat->SetTransparency( 50 ); }
+    TIter matNext( matList );
+    while( mat = (TGeoMaterial*) matNext() )
+    {
+        mat->SetTransparency( 80 );
+    }
     
-
-    // manual, using name
     /*TGeoMaterial *mat = geom->GetMaterial("mat_vacuum");
       mat->SetTransparency( 50 );*/
+    //TGeoMaterial *mat = new TGeoMaterial("mat_vacuum");
+        
+    TGeoVolume *top = geom->GetTopVolume();
+    //top->SetLineColor( kWhite );
+    //geom->SetTopVisible();
     
-    TGeoVolume *top = gGeoManager->GetTopVolume();
-    top->SetLineColor( kRed );
-    geom->SetTopVisible();
-    TGeoVolume *box1 =  geom->GetVolume("vol_box1");
-    box1->SetLineColor( kGreen );
-    TGeoVolume *box2 =  geom->GetVolume("vol_box2");
-    box2->SetLineColor( kYellow );
+    TObjArray *volList = geom->GetListOfVolumes();
+    TIter volNext( volList );
+    while( vol = (TGeoVolume*) volNext() ) { vol->SetLineColor( kRed ); }
+    
+    /*TGeoVolume *vol0 =  geom->GetVolume("vol_module0");
+      vol0->SetLineColor( kGreen );
+    TGeoVolume *vol1 =  geom->GetVolume("vol_module1");
+    vol1->SetLineColor( kBlue );*/
+    
     top->Draw("ogl");
 }
