@@ -4,9 +4,10 @@ import javax.xml.parsers.ParserConfigurationException;
 
 public class VolumeExporterFactory {
 
-	public static IVolumeExporter createVolumeExporter( String aCriteria ) {
-		
-		switch( aCriteria.toLowerCase() ) {
+	public static IVolumeExporter createVolumeExporter( String aCriteria ) throws IllegalArgumentException
+	{
+		switch( aCriteria.toLowerCase() )
+		{
 		case "gdml":
 			try {
 				return new GdmlFile();
@@ -14,9 +15,10 @@ public class VolumeExporterFactory {
 				e.printStackTrace();
 			}
 			break;
+		default:
+			throw new IllegalArgumentException("unknown criterion");
 		}
 		return null;
-		
 	}
 	
 }

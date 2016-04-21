@@ -17,12 +17,13 @@ public class main
 		// Geant4Basic: rad, but displayed as deg on Geant4Basic.toString()
 		// GDML: rad (default=deg)
 		
-		ConstantsCcdb.Load();
+		CcdbGeomSvt.load();
+		CcdbGeomSvt.show();
 		//System.exit( 0 );
 		
-		double moduleLength = ConstantsCcdb.MODULELENGTH / 10.0,  // mm -> cm
-				moduleWidth = ConstantsCcdb.ACTIVESENWIDTH / 10.0, // total sensor width, not pitch adapter width
-				moduleHeight = ConstantsCcdb.SILICONTHICK / 10.0;
+		double moduleLength = CcdbGeomSvt.MODULELEN / 10.0,  // mm -> cm
+				moduleWidth = CcdbGeomSvt.ACTIVESENWID / 10.0, // total sensor width, not pitch adapter width
+				moduleHeight = CcdbGeomSvt.SILICONTHICK / 10.0;
 		
 		System.out.println("defining Geant4Basic geometry");
 		System.out.printf("moduleLength=%8.3e\n", moduleLength );
@@ -49,36 +50,38 @@ public class main
 		refZ.setPosition( 0.0, 0.0, 5.0 );
 		top.getChildren().add( refZ );
 		
-		int nReg = ConstantsCcdb.NREG;
-		int[] nSect = ConstantsCcdb.NSECT;
-		double[] regionZ = ConstantsCcdb.Z0;
+		int nReg = CcdbGeomSvt.NREG;
+		int[] nSect = CcdbGeomSvt.NSECT;
+		double[] regionZ = CcdbGeomSvt.Z0;
+		double sectorAngleStart = CcdbGeomSvt.PHI0*Math.PI/180.0; // deg -> rad
+		double zRotationStart = CcdbGeomSvt.LOCZAXISROTATION*Math.PI/180.0;
 		
 		for( int r = 0; r < nReg; r++ )
 		{
-			double[] sectorRadius = ConstantsCcdb.MODULERADIUS[r];
+			double[] sectorRadius = CcdbGeomSvt.MODULERADIUS[r];
 			
 			for( int s = 0; s < nSect[r]; s++ )
-				for( int l = 0; l < ConstantsCcdb.NSLAYR; l++ )
+				for( int l = 0; l < CcdbGeomSvt.NLAYR; l++ )
 				{
 					String sl = ""; // super layer label
 					switch( l )
 					{
-					case 0:
-						sl = "u"; // lower / inner
+					case 0: // lower / inner
+						sl = "u"; 
 						break;
-					case 1:
-						sl = "v"; // upper / outer
+					case 1: // upper / outer
+						sl = "v"; 
 						break;
 					}
 					Geant4Basic module = new Geant4Basic("module_r"+(r+1)+"s"+(s+1)+sl, "box", moduleWidth, moduleHeight, moduleLength );
 					
-					double phi = 2*Math.PI/nSect[r]*s + Math.PI;
-					double x = sectorRadius[l]*Math.cos(phi + Math.PI/2) / 10.0;
-					double y = sectorRadius[l]*Math.sin(phi + Math.PI/2) / 10.0;
-					double z = regionZ[r] / 10.0 + moduleLength/2;
+					double phi = 2.0*Math.PI/nSect[r]*s + sectorAngleStart; // module rotation about target / origin
+					double x = sectorRadius[l]*Math.cos( phi ) / 10.0;
+					double y = sectorRadius[l]*Math.sin( phi ) / 10.0;
+					double z = regionZ[r] / 10.0 + moduleLength/2.0;
 					
 					module.setPosition( x, y, z );
-					module.setRotation("xyz", 0.0, 0.0, -phi );
+					module.setRotation("xyz", 0.0, 0.0, zRotationStart - phi ); // module rotation about centre of mass
 					top.getChildren().add( module );
 					//System.out.println( module.toString() );
 				}
