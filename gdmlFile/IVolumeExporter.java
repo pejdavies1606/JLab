@@ -12,9 +12,12 @@ public interface IVolumeExporter {
 	public void setAngleUnit( String aAngleUnit );
 	
 	public void addMaterialPreset( String aName );
+	public void addMaterialPreset( String aName, String aMatRef );
 	
 	public void addTopVolume( Geant4Basic aTopVol );
 	public void addTopVolume( Geant4Basic aTopVol, String aMatRef );
+	
+	public void replaceMat( Geant4Basic aNode, String aSearch, String aMatRef );
 	
 	public void writeFile( String aFileNameWithoutExtension );
 	
