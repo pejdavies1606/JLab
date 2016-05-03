@@ -125,6 +125,7 @@ public class CcdbGeomSvt
 		if( bConstantsLoaded )
 		{
 			System.out.println();
+			System.out.println("CcdbGeomSvt Parameters:");
 			System.out.println("NREG="+ NREG );
 			System.out.println("NLAYR="+ NLAYR );
 			System.out.println("NSEN="+ NSEN );
@@ -157,6 +158,7 @@ public class CcdbGeomSvt
 					System.out.printf("%8.3e ", MODULERADIUS[r][l] );
 				System.out.println();
 			}
+			System.out.println();
 		}
 	}
 }

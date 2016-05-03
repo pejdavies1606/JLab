@@ -1,7 +1,6 @@
 package volume_geometry;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -14,9 +13,14 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import org.jlab.geom.geant.Geant4Basic;
@@ -27,9 +31,13 @@ public class GdmlFile implements IVolumeExporter
 	private DocumentBuilder mDocBuilder;
 	private Document mDoc;
 	private Element mRoot, mDefine, mMaterials, mSolids, mStructure, mSetup;
+	
 	private boolean mVerbose = false;
+	
 	private String mPositionLoc = "global", mRotationLoc = "global";
-	private String mAngleUnit = "deg";
+	private String mDefaultMatRef = "mat_vacuum";
+	private String mDesiredAngleUnit = "deg";
+	private String mActualAngleUnit = "rad";
 	
 	
 	public GdmlFile() throws ParserConfigurationException
@@ -90,13 +98,13 @@ public class GdmlFile implements IVolumeExporter
 	
 	
 	
-	public void setAngleUnit( String aAngleUnit ) throws IllegalArgumentException
+	public void setDesiredAngleUnit( String aAngleUnit ) throws IllegalArgumentException
 	{
 		switch( aAngleUnit )
 		{
 		case "deg":
 		case "rad":
-			mAngleUnit = aAngleUnit;
+			mDesiredAngleUnit = aAngleUnit;
 			break;
 		default:
 			throw new IllegalArgumentException("unknown unit: "+aAngleUnit );
@@ -105,19 +113,40 @@ public class GdmlFile implements IVolumeExporter
 	
 	
 	
-	public void addTopVolume( Geant4Basic aTopVol )
-	{ // from VolumeExporter interface
-		this.addLogicalTree( aTopVol );
-		this.addPhysicalTree( aTopVol );
-		this.addWorld( aTopVol.getName() );
+	public void setActualAngleUnit( String aAngleUnit ) throws IllegalArgumentException
+	{
+		switch( aAngleUnit )
+		{
+		case "deg":
+		case "rad":
+			mActualAngleUnit = aAngleUnit;
+			break;
+		default:
+			throw new IllegalArgumentException("unknown unit: "+aAngleUnit );
+		}
 	}
 	
 	
 	
-	public void addTopVolume( Geant4Basic aTopVol, String aMatRef )
+	public void setDefaultMaterial( String aMatRef )
+	{
+		this.mDefaultMatRef = aMatRef;
+	}
+	
+	
+	
+	public void addTopVolume( Geant4Basic aTopVol )
 	{ // from VolumeExporter interface
-		this.addMaterialPreset( aMatRef );
-		this.addLogicalTree( aTopVol, aMatRef );
+		
+		System.out.println("adding top volume with the following parameters:");
+		System.out.println("  position location=\t"+ mPositionLoc );
+		System.out.println("  rotation location=\t"+ mRotationLoc );
+		System.out.println("  material=\t\t"+ mDefaultMatRef );
+		System.out.println("  actual angle unit=\t"+ mActualAngleUnit );
+		System.out.println("  desired angle unit=\t"+ mDesiredAngleUnit );
+		
+		this.addMaterialPreset( mDefaultMatRef );
+		this.addLogicalTree( aTopVol, mDefaultMatRef );
 		this.addPhysicalTree( aTopVol );
 		this.addWorld( aTopVol.getName() );
 	}
@@ -286,7 +315,7 @@ public class GdmlFile implements IVolumeExporter
 			break;
 			
 		default:
-			throw new IllegalArgumentException("material: \""+ aMatRef +"\"");
+			throw new IllegalArgumentException("material \""+ aMatRef +"\" does not exist");
 		}
 	}
 	
@@ -304,22 +333,36 @@ public class GdmlFile implements IVolumeExporter
 		solid.setAttribute("name", solRef );
 		
 		// types defined here: http://gdml.web.cern.ch/GDML/doc/GDMLmanual.pdf
+		
+		double[] solParams = aSolid.getParameters();
+		
 		switch( type )
 		{
 		case "box":
-			solid.setAttribute("x", Double.toString( aSolid.getParameters()[0] ) );
-			solid.setAttribute("y", Double.toString( aSolid.getParameters()[1] ) );
-			solid.setAttribute("z", Double.toString( aSolid.getParameters()[2] ) );
+			
+			if( solParams.length == 1 ) // cube
+			{
+				solid.setAttribute("x", Double.toString( solParams[0] ) );
+				solid.setAttribute("y", Double.toString( solParams[0] ) );
+				solid.setAttribute("z", Double.toString( solParams[0] ) );
+			}
+			else // regular cuboid
+			{
+				solid.setAttribute("x", Double.toString( solParams[0] ) );
+				solid.setAttribute("y", Double.toString( solParams[1] ) );
+				solid.setAttribute("z", Double.toString( solParams[2] ) );
+			}	
 			break;
 			
-		case "eltube":
-			solid.setAttribute("dx", Double.toString( aSolid.getParameters()[0] ) );
-			solid.setAttribute("dy", Double.toString( aSolid.getParameters()[1] ) );
-			solid.setAttribute("dz", Double.toString( aSolid.getParameters()[2] ) );
+		case "eltube": // cylinder along Z axis
+			
+			solid.setAttribute("dx", Double.toString( solParams[0] ) );
+			solid.setAttribute("dy", Double.toString( solParams[1] ) );
+			solid.setAttribute("dz", Double.toString( solParams[2] ) );
 			break;
 			
-		case "orb":
-			solid.setAttribute("r", Double.toString( aSolid.getParameters()[0] ));
+		case "orb": // sphere
+			solid.setAttribute("r", Double.toString( solParams[0] ));
 			break;
 			
 		default:
@@ -431,13 +474,11 @@ public class GdmlFile implements IVolumeExporter
 		
 	
 	
-	public void addPhysicalVolume( String aParentName, Geant4Basic aSolid, String aAngleUnit ) throws NullPointerException, IllegalArgumentException
+	public void addPhysicalVolume( String aParentName, Geant4Basic aSolid ) throws NullPointerException, IllegalArgumentException
 	{
 		// Physical Volumes always have a position and a rotation in space, but this can be defined from a global or local reference 
 		if( aParentName.isEmpty() )
 			throw new IllegalArgumentException("empty String aParentName");
-		if( aAngleUnit.isEmpty() )
-			throw new IllegalArgumentException("empty String aAngleUnit");
 		if( aSolid == null)
 			throw new IllegalArgumentException("empty Geant4Basic");
 		
@@ -518,23 +559,34 @@ public class GdmlFile implements IVolumeExporter
 			}
 		}
 		
-		if( !rotAllZero ) { // no need to write a blank line that doesn't do anything
+		if( !rotAllZero ) // no need to write a blank line that doesn't do anything
+		{
+			double[] solRotation = aSolid.getRotation();
+			if( mDesiredAngleUnit == "deg" && mActualAngleUnit == "rad" )
+			{
+				for( int i = 0; i < 3; i++) { solRotation[i] = Math.toDegrees( solRotation[i] ); }
+			}
+			else if( mDesiredAngleUnit == "rad" && mActualAngleUnit == "deg" )
+			{
+				for( int i = 0; i < 3; i++) { solRotation[i] = Math.toRadians( solRotation[i] ); }
+			}
+			
 			switch( mRotationLoc )
 			{
 			case "local":
 				Element rotation = mDoc.createElement( "rotation" );
 				rotation.setAttribute( "name", "rot_"+ aSolid.getName() +"_in_"+ aParentName );
-				rotation.setAttribute("x", Double.toString( aSolid.getRotation()[0] ) );
-				rotation.setAttribute("y", Double.toString( aSolid.getRotation()[1] ) );
-				rotation.setAttribute("z", Double.toString( aSolid.getRotation()[2] ) );
-				rotation.setAttribute("unit", aAngleUnit );
+				rotation.setAttribute("x", Double.toString( solRotation[0] ) );
+				rotation.setAttribute("y", Double.toString( solRotation[1] ) );
+				rotation.setAttribute("z", Double.toString( solRotation[2] ) );
+				rotation.setAttribute("unit", mDesiredAngleUnit );
 				physvol.appendChild( rotation );
-			break;
-			
+				break;
+				
 			case "global":
 				Element rotationRef = mDoc.createElement( "rotationref" );
 				String rotationName = "rot_"+ aSolid.getName() +"_in_"+ aParentName;
-				this.addRotation( rotationName, aSolid.getRotation(), aSolid.getRotationOrder(), aAngleUnit );
+				this.addRotation( rotationName, solRotation, aSolid.getRotationOrder(), mDesiredAngleUnit );
 				rotationRef.setAttribute("ref", rotationName );
 				physvol.appendChild( rotationRef );
 				break;
@@ -557,7 +609,7 @@ public class GdmlFile implements IVolumeExporter
 			Geant4Basic child = children.get( i );
 
 			try {
-				this.addPhysicalVolume( aNode.getName(), child, mAngleUnit );
+				this.addPhysicalVolume( aNode.getName(), child ); // always "rad" for Geant4Basic
 				
 			} catch( NullPointerException e ) {
 				e.printStackTrace();
@@ -618,13 +670,39 @@ public class GdmlFile implements IVolumeExporter
 	
 	public void replaceMat( Geant4Basic aNode, String aSearch, String aMatRef ) throws NullPointerException
 	{
-		// find logical volumes whose name contains aSearch, and change the material ref to aMatRef
+		// find logical volumes ("vol_") whose name contains aSearch, and change the material reference to aMatRef
 		
-		// use XPath?
+		// using XPath
+		NodeList matchVolNodeList = _findChildrenByNameContains( mStructure, "name", "vol_"+ aSearch );
+		String aSearchNodeAttribute = "name";
+		String aSearchValueNode = "materialref";
+		String aSearchValueAttribute = "ref";
+		
+		for( int i = 0; i < matchVolNodeList.getLength(); i++ )
+		{
+			String volName = matchVolNodeList.item( i ).getAttributes().getNamedItem( aSearchNodeAttribute ).getNodeValue();
+			
+			NodeList volChildNodeList = matchVolNodeList.item( i ).getChildNodes();
+			int matRefIndex = -1;
+			for( int j = 0; j < volChildNodeList.getLength(); j++ )
+			{
+				matRefIndex = j;
+				if( volChildNodeList.item( j ).getNodeName() == aSearchValueNode ) break;
+			}
+			
+			Node matRefNode = volChildNodeList.item( matRefIndex ).getAttributes().getNamedItem( aSearchValueAttribute );
+			
+			String oldMatRef = matRefNode.getNodeValue();
+			matRefNode.setNodeValue( aMatRef );
+			String newMatRef = matRefNode.getNodeValue();
+			
+			if( mVerbose ) System.out.println( volName +": "+ oldMatRef +" -> "+ newMatRef );
+		}
 		
 		
+				
 		// manually
-		List<Element> logVolMatchList = _findChildrenByNameContains( mStructure, aSearch );
+		/*List<Element> logVolMatchList = _findChildrenByNameContains( mStructure, aSearch );
 		if( logVolMatchList.size() == 0 )
 			throw new NullPointerException("could not find any logVols with names containing \""+ aSearch +"\"");
 		
@@ -641,13 +719,13 @@ public class GdmlFile implements IVolumeExporter
 				throw new NullPointerException("found multiple materialrefs?!");
 		
 			//materialref.item(0).
-		}
+		}*/
 		
 	}
 	
 	
 	
-	private Element _findChildByName( Element aParent, String aName ) throws IllegalArgumentException 
+	private Element _findChildByName( Element aParent, String aName ) throws IllegalArgumentException
 	{
 		if( aName.isEmpty() )
 			throw new IllegalArgumentException("empty String");
@@ -661,6 +739,9 @@ public class GdmlFile implements IVolumeExporter
 		{
 			Element child = (Element) childNodes.item( i );
 			String childName = child.getAttribute("name");
+			
+			//Node childNode = childNodes.item( i );
+			//String childNodeName = childNode.getAttributes().getNamedItem("name").getNodeValue();
 			
 			//System.out.println(" checking child <"+ child.getNodeName() +" name=\""+ childName +"\">");
 			//System.out.println("childName="+ childName);
@@ -678,33 +759,34 @@ public class GdmlFile implements IVolumeExporter
 	
 	
 	
-	private List<Element> _findChildrenByNameContains( Element aParent, String aSubName ) throws IllegalArgumentException 
+	private NodeList _findChildrenByNameContains(
+			Element aParent,
+			String aSearchNodeAttribute,
+			String aSearchNodeAttributeSubName
+			) throws IllegalArgumentException
 	{		
-		if( aSubName.isEmpty() ) {
-			throw new IllegalArgumentException("empty String");
-		} else if( aParent == null ) {
+		if( aParent == null )
 			throw new IllegalArgumentException("empty Element");
-		}
+		if( aSearchNodeAttribute.isEmpty() )
+			throw new IllegalArgumentException("empty String");
+		if( aSearchNodeAttributeSubName.isEmpty() )
+			throw new IllegalArgumentException("empty String");
 		
-		List<Element> children = new ArrayList<Element>();
-		NodeList childNodes = aParent.getChildNodes();
-		//System.out.println("GdmlFile: _findChildByName(): begin search in parent <"+ aParent.getNodeName() +"> for children with names that include \""+ aName +"\">");
+		XPath xpath = XPathFactory.newInstance().newXPath();
 		
-		for( int i = 0; i < childNodes.getLength(); i++)
+		try
 		{
-			Element child = (Element) childNodes.item( i );
-			String childName = child.getAttribute("name");
-			
-			//System.out.println(" checking child <"+ child.getNodeName() +" name=\""+ childName +"\">");
-			//System.out.println("childName="+ childName);
-			//System.out.println("aName="+ aName);
-			
-			if( childName.contains( aSubName ) ) { // don't use childName == aName, which checks references (pointers) of the objects, and not their logical value!
-				//System.out.println(" found child");
-				children.add( child );
-			}
+			String xPathSearch = "//*[contains(@"+aSearchNodeAttribute+",'"+aSearchNodeAttributeSubName+"')]"; // search for substring
+			//if( mVerbose ) System.out.println("XPathSearch=\""+ xPathSearch +"\"");
+			NodeList matchVolNodeList = (NodeList) xpath.evaluate( xPathSearch, aParent, XPathConstants.NODESET );
+			if( mVerbose ) System.out.println( "XPath matched "+ matchVolNodeList.getLength() +" nodes" );
+			return matchVolNodeList;
 		}
-		System.out.println("numChildrenFound="+ children.size() );
-		return children;
+		catch( XPathExpressionException e )
+		{
+			e.printStackTrace();
+		}
+		
+		return null;
 	}
 }
