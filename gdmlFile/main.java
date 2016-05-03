@@ -16,7 +16,7 @@ public class main
 		//svt.defineRefs();
 		//svt.defineTarget();
 		//svt.openOutputDataFiles();
-		svt.defineModules( 0, svt.mNReg, 0, svt.mNSect ); // all modules and fiducials
+		svt.defineModules( 0, svt.getNReg(), 0, svt.getNSect() ); // all modules and fiducials
 		//int r = 0;
 		//int s = 6;
 		//svt.defineModules( r, r+1, s, new int[]{s+1} ); // one module

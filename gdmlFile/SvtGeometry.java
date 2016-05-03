@@ -30,44 +30,46 @@ public class SvtGeometry {
 	// GDML: rad (default=deg)
 	
 	// Geant4Basic
-	double mTopSide;
-	Geant4Basic mTop, mGroupMod;
+	private double mTopSide;
+	private Geant4Basic mTop, mGroupMod;
 	
 	// modules
-	double mModuleLength, mModuleWidth, mModuleHeight;
-	int mNReg;
-	int[] mNSect;
-	double[] mRegionZ;
-	double mSectorAngleStart;
-	double mZRotationStart;
-	double[][] mModLyrPos;
+	private double mModuleLength, mModuleWidth, mModuleHeight;
+	private int mNReg;
+	private int[] mNSect;
+	private double[] mRegionZ;
+	private double mSectorAngleStart;
+	private double mZRotationStart;
+	private double[][] mModLyrPos;
 	
 	// nominal fiducials
-	double mFidOrbRadius = 0.1; // cm
-	final int NFIDS = 3; // number of fiducial survey data points on each sensor module
+	private double mFidOrbRadius = 0.1; // cm
+	private final int NFIDS = 3; // number of fiducial survey data points on each sensor module
 	
 	// plane arrows
-	double mRefBallRadius = 0.15;
-	double mArrowLength = 1.0;
-	double mArrowDiameter = 0.1*mArrowLength;
+	private double mRefBallRadius = 0.15;
+	private double mArrowLength = 1.0;
+	private double mArrowDiameter = 0.1*mArrowLength;
 	
 	// external files
-	String mFilenameGdml;
-	String mFilenameFidSurveyIdeals = "survey_ideals.dat";
-	String mFilenameFidSurveyMeasured = "survey_measured.dat";
+	private String mFilenameGdml;
+	private String mFilenameFidSurveyIdeals = "survey_ideals.dat";
+	private String mFilenameFidSurveyMeasured = "survey_measured.dat";
 	//String mFilenameSurveyDeltas = "survey_deltas.dat";
 	
-	String mFilenameNominal = "nominal.dat";
-	Writer mOutputNominal = null;
-	String mFilenameNominalDeltas = "nominal_deltas.dat";
-	Writer mOutputNominalDeltas = null;
+	private String mFilenameNominal = "nominal.dat";
+	private Writer mOutputNominal = null;
+	private String mFilenameNominalDeltas = "nominal_deltas.dat";
+	private Writer mOutputNominalDeltas = null;
 	
 	// fiducial survey data
-	double[][] mFidSurveyIdeals, mFidSurveyMeasured, mFidSurveyDeltas;
-	double[][] mFidNominalIdeals, mFidNominalDeltas; // nominalDeltas = nominal compared to survey ideal
+	private double[][] mFidSurveyIdeals, mFidSurveyMeasured, mFidSurveyDeltas;
+	private double[][] mFidNominalIdeals, mFidNominalDeltas; // nominalDeltas = nominal compared to survey ideal
 	
 	// component visibility
-	boolean mVisMod, mVisFidN, mVisFidI, mVisFidM, mVisFidNA, mVisFidIA, mVisFidMA;
+	private boolean mVisMod, mVisFidN, mVisFidI, mVisFidM, mVisFidNA, mVisFidIA, mVisFidMA;
+	
+	
 	
 	public SvtGeometry( String aName )
 	{
@@ -137,6 +139,27 @@ public class SvtGeometry {
 	public void setVisibilityFiducialsSurveyMeasuredPlanes( boolean aVis )
 	{
 		mVisFidMA = aVis;
+	}
+	
+	
+	
+	public int getNReg()
+	{
+		return mNReg;
+	}
+	
+	
+	
+	public int[] getNSect()
+	{
+		return mNSect;
+	}
+	
+	
+	
+	public Geant4Basic getMother()
+	{
+		return mTop;
 	}
 	
 	
