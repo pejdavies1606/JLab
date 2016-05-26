@@ -604,17 +604,31 @@ public class GdmlFile implements IVolumeExporter
 	public void addPhysicalTree( Geant4Basic aNode ) 
 	{				
 		List<Geant4Basic> children = aNode.getChildren();
-		for( int i = 0; i < children.size(); i++ ) {
-
+		for( int i = 0; i < children.size(); i++ )
+		{
 			Geant4Basic child = children.get( i );
 
-			try {
-				this.addPhysicalVolume( aNode.getName(), child ); // always "rad" for Geant4Basic
-				
-			} catch( NullPointerException e ) {
-				e.printStackTrace();
-			} catch( IllegalArgumentException e ) {
-				e.printStackTrace();
+			int[] id = child.getId();
+			boolean addPhysVol = true;
+			
+			if( id.length != 0 )
+			{
+				//System.out.println("id="+id[0]);
+				if( id[0] == 0 )
+					addPhysVol = false;
+			}
+			
+			if( addPhysVol )
+			{
+				try 
+				{
+					this.addPhysicalVolume( aNode.getName(), child ); // always "rad" for Geant4Basic
+					
+				} catch( NullPointerException e ) {
+					e.printStackTrace();
+				} catch( IllegalArgumentException e ) {
+					e.printStackTrace();
+				}
 			}
 			
 			this.addPhysicalTree( child ); // tail recursive?
@@ -667,60 +681,46 @@ public class GdmlFile implements IVolumeExporter
 	}
 	
 	
-	
-	public void replaceMat( Geant4Basic aNode, String aSearch, String aMatRef ) throws NullPointerException
+	 //mTop, "structure", "volume", "name", "fid", "materialref", "ref", "mat_fid"
+	public void replaceAttribute( Geant4Basic aNode, String aParentName,
+			String aSearchNode, String aSearchAttribute, String aSearchValue,
+			String aReplaceNode, String aReplaceAttribute, String aReplaceValue ) throws NullPointerException, IllegalArgumentException
 	{
-		// find logical volumes ("vol_") whose name contains aSearch, and change the material reference to aMatRef
+		// special case: find logical volumes ("vol_") whose name contains aSearch, and change the material reference to aMatRef
+		
+		Element parent = null;
+		switch( aParentName.toLowerCase() )
+		{
+		case "structure":
+			parent = mStructure;
+			break;
+		default:
+			throw new IllegalArgumentException("unknown parent: "+aParentName );
+		}
 		
 		// using XPath
-		NodeList matchVolNodeList = _findChildrenByNameContains( mStructure, "name", "vol_"+ aSearch );
-		String aSearchNodeAttribute = "name";
-		String aSearchValueNode = "materialref";
-		String aSearchValueAttribute = "ref";
+		NodeList matchVolNodeList = _findChildrenByNameContains( parent, "name", aSearchValue );
 		
 		for( int i = 0; i < matchVolNodeList.getLength(); i++ )
 		{
-			String volName = matchVolNodeList.item( i ).getAttributes().getNamedItem( aSearchNodeAttribute ).getNodeValue();
+			String volName = matchVolNodeList.item( i ).getAttributes().getNamedItem( aSearchAttribute ).getNodeValue();
 			
 			NodeList volChildNodeList = matchVolNodeList.item( i ).getChildNodes();
 			int matRefIndex = -1;
 			for( int j = 0; j < volChildNodeList.getLength(); j++ )
 			{
 				matRefIndex = j;
-				if( volChildNodeList.item( j ).getNodeName() == aSearchValueNode ) break;
+				if( volChildNodeList.item( j ).getNodeName() == aReplaceNode ) break;
 			}
 			
-			Node matRefNode = volChildNodeList.item( matRefIndex ).getAttributes().getNamedItem( aSearchValueAttribute );
+			Node matRefNode = volChildNodeList.item( matRefIndex ).getAttributes().getNamedItem( aReplaceAttribute );
 			
 			String oldMatRef = matRefNode.getNodeValue();
-			matRefNode.setNodeValue( aMatRef );
+			matRefNode.setNodeValue( aReplaceValue );
 			String newMatRef = matRefNode.getNodeValue();
 			
 			if( mVerbose ) System.out.println( volName +": "+ oldMatRef +" -> "+ newMatRef );
-		}
-		
-		
-				
-		// manually
-		/*List<Element> logVolMatchList = _findChildrenByNameContains( mStructure, aSearch );
-		if( logVolMatchList.size() == 0 )
-			throw new NullPointerException("could not find any logVols with names containing \""+ aSearch +"\"");
-		
-		for( int i = 0; i < logVolMatchList.size(); i++ )
-		{
-			Element logVol = logVolMatchList.get( i );
-			
-			// /structures/volume/materialref Reference to Material
-			NodeList materialref = logVol.getElementsByTagName("materialref");
-			
-			if( materialref.getLength() == 0 )
-				throw new NullPointerException("no materialref found");
-			if( materialref.getLength() > 1 )
-				throw new NullPointerException("found multiple materialrefs?!");
-		
-			//materialref.item(0).
-		}*/
-		
+		}	
 	}
 	
 	
@@ -779,7 +779,7 @@ public class GdmlFile implements IVolumeExporter
 			String xPathSearch = "//*[contains(@"+aSearchNodeAttribute+",'"+aSearchNodeAttributeSubName+"')]"; // search for substring
 			//if( mVerbose ) System.out.println("XPathSearch=\""+ xPathSearch +"\"");
 			NodeList matchVolNodeList = (NodeList) xpath.evaluate( xPathSearch, aParent, XPathConstants.NODESET );
-			if( mVerbose ) System.out.println( "XPath matched "+ matchVolNodeList.getLength() +" nodes" );
+			if( mVerbose ) System.out.println("XPath search in <"+aParent.getTagName()+"> for elements with attribute \""+aSearchNodeAttribute+"\" containing \""+aSearchNodeAttributeSubName+"\" matched "+matchVolNodeList.getLength()+" nodes");
 			return matchVolNodeList;
 		}
 		catch( XPathExpressionException e )

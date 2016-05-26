@@ -97,7 +97,9 @@ public class CcdbGeomSvt
 			STATUS[r] = cp.getInteger(GEOMPATH+"region/status", r );
 			
 			double zStart = cp.getDouble(GEOMPATH+"region/zStart", r );
-			Z0[r] = zStart + DEADZNLEN; // assuming deadZnLen applies to ends, this moves Z0 to the active start of the hybrid sensor, rather than the physical start
+			// zStart goes to the edge of first active sensor volume
+			// Z0 goes to the edge of the physical sensor volume
+			Z0[r] = zStart - DEADZNLEN; // MODULELEN includes DEADZNLEN
 			
 			double radius = cp.getDouble(GEOMPATH+"region/radius", r);
 			MODULERADIUS[r] = new double[NLAYR];

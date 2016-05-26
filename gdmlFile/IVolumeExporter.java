@@ -14,7 +14,9 @@ public interface IVolumeExporter {
 	
 	public void addTopVolume( Geant4Basic aTopVol );
 	
-	public void replaceMat( Geant4Basic aNode, String aSearch, String aMatRef );
+	public void replaceAttribute(  Geant4Basic aNode, String aParentName,
+			String aSearchNode, String aSearchAttribute, String aSearchValue,
+			String aReplaceNode, String aReplaceAttribute, String aReplaceValue );
 	
 	public void writeFile( String aFileNameWithoutExtension );
 	
