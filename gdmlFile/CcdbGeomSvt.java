@@ -101,11 +101,38 @@ public class CcdbGeomSvt
 			// Z0 goes to the edge of the physical sensor volume
 			Z0[r] = zStart - DEADZNLEN; // MODULELEN includes DEADZNLEN
 			
+			// Consider Region 1 Sector 6 (not to scale)
+			//
+			// y (vertical)                                    .------------------^-------------
+			// ^         			   						   | U (outer)		  |
+			// |                                               | sensor layer	  | 0.32 silicon thickness
+			// |                                               |				  |
+			// |                                      .--------+--------------^---v-------------
+			// |                                      | carbon fibre etc	  |
+			// |------^-----------------^-------------+-----------------------|----------------- fiducial layer
+			// |      |   				|									  |
+			// |	  |					|									  |
+			// |      |   				| 2.50			rohacell			  | 3.547 layer gap
+			// |	  |	2.88			|									  |
+			// |      |         	    |									  |
+			// |      |              +--v-------------+-----------------------|------------------
+			// |  	  |				 |                | carbon fibre etc	  |
+			// |      |				 |				  '---^----+--------------v-----^------------
+			// |------v--------------'					  |	   | 				    |
+			// |                                          |    | V (inner)			| 0.32 silicon thickness
+			// |                                          |    | sensor layer		|
+			// |                                          |    '--------------------v-----------
+			// |										  | 
+			// |										  | radius
+			// |										  |
+			// o==========================================v===================================-> z (beamline)
+			
+			// radius = distance to inner side of V (inner) sensor layer)
 			double radius = cp.getDouble(GEOMPATH+"region/radius", r);
 			MODULERADIUS[r] = new double[NLAYR];
 			for( int l = 0; l < NLAYR; l++ )
 			{
-				switch( l ) // radius = distance to inner (V layer) backing structure
+				switch( l ) 
 				{
 				case 0: // U = lower / inner
 					MODULERADIUS[r][l] = radius - MODULEPOSFAC*SILICONTHICK;
@@ -152,12 +179,12 @@ public class CcdbGeomSvt
 			for( int r = 0; r < NREG; r++ )
 				System.out.println("STATUS["+r+"]="+STATUS[r] );
 			for( int r = 0; r < NREG; r++ )
-				System.out.printf("Z0["+r+"]=%8.3e\n", Z0[r] );
+				System.out.printf("Z0["+r+"]=%8.3f\n", Z0[r] );
 			for( int r = 0; r < NREG; r++ )
 			{
 				System.out.print("MODULERADIUS["+r+"]=");
 				for( int l = 0; l < NLAYR; l++ )
-					System.out.printf("%8.3e ", MODULERADIUS[r][l] );
+					System.out.printf("%8.3f ", MODULERADIUS[r][l] );
 				System.out.println();
 			}
 			System.out.println();

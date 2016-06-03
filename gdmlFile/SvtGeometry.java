@@ -142,7 +142,7 @@ public class SvtGeometry {
 	
 	
 	
-	public void setVisibilityFiducialsNominalDeltasPlanes( boolean aVis )
+	public void setVisibilityFiducialsNominalDeltas( boolean aVis )
 	{
 		mVisFidNDA = aVis;
 	}
@@ -199,7 +199,7 @@ public class SvtGeometry {
 		
 		mModuleLength = CcdbGeomSvt.MODULELEN; // total sensor length, including dead zones and micro gaps
 		mModuleWidth = CcdbGeomSvt.ACTIVESENWID; // total sensor width, not pitch adapter width
-		mModuleHeight = CcdbGeomSvt.SILICONTHICK;		
+		mModuleHeight = CcdbGeomSvt.SILICONTHICK;
 		mNReg = CcdbGeomSvt.NREG;
 		mNSect = CcdbGeomSvt.NSECT;
 		mRegionZ = CcdbGeomSvt.Z0;
@@ -279,7 +279,7 @@ public class SvtGeometry {
 	public void defineRefs()
 	{
 		Geant4Basic refOrigin = new Geant4Basic("refOrigin", "box", 0.0 );
-		//refOrigin.setMother( mTop );
+		refOrigin.setMother( mTop );
 		refOrigin.setPosition( 0.0, 0.0, 0.0 );
 		//System.out.println( refOrigin.gemcString() );
 		
@@ -299,7 +299,7 @@ public class SvtGeometry {
 		//System.out.println( refZ.gemcString() );
 		
 		Geant4Basic refRotGroup = new Geant4Basic("refRot", "box", 0.0 );
-		refRotGroup.setMother( mTop );
+		//refRotGroup.setMother( mTop );
 		//System.out.println( refRotGroup.gemcString() );
 		
 		/*Geant4Basic refRotX = new Geant4Basic("refRotX", "box", 0.25, 2.0, 0.25 );
@@ -384,11 +384,10 @@ public class SvtGeometry {
 			{
 				double phi = -2.0*Math.PI/mNSect[region]*sector + mSectorAngleStart; // module rotation about target / origin
 				double modRot = phi - mZRotationStart; // module rotation about centre of geometry
-				System.out.println("\nphi="+ Math.toDegrees(phi) + " modRot=" + Math.toDegrees(modRot) );
+				System.out.printf("\nr%02ds%02d phi=% 7.2f modRot=% 7.2f\n", (region+1), (sector+1), Math.toDegrees(phi), Math.toDegrees(modRot) );
 				
-				_defineModuleNominal( region, sector, sectorRadius, phi, modRot, mVisMod, mVisModA );
-				
-				_defineFiducialsNominal( region, sector, modRot, mVisFidN, mVisFidNA );
+				_defineModuleNominal(    region, sector, sectorRadius, phi, modRot, mVisMod,  mVisModA );
+				_defineFiducialsNominal( region, sector, sectorRadius, phi, modRot, mVisFidN, mVisFidNA );
 				
 				if( region == 0 && sector == 6 && mFidSurveyFix )
 				{
@@ -490,13 +489,28 @@ public class SvtGeometry {
 		double beta =  Math.PI/2.0 - phi;
 		double gamma = alpha;
 		
-		arrowVol.setRotation("zyx", -gamma, beta, -alpha ); // GDML has active rotations, so negate x and z, and reverse the order
+		arrowVol.setRotation("xyz", -alpha, 0.0, -gamma ); // GDML has active rotations, so negate x and z, the order is reversed implicitly
 		
-		// shift centre of geometry of arrow to put start ball at first end
-		aVec = aVec.asUnit();
-		double shiftX = aVec.x()*aArrowLength/2.0;
-		double shiftY = aVec.y()*aArrowLength/2.0;
-		double shiftZ = aVec.z()*aArrowLength/2.0;
+		// shift centre of geometry of arrow to put first end at start ball		
+		Vector3D cenVec = aCen.toVector3D();
+		
+		Vector3D arrowVec = new Vector3D( aVec ).asUnit().multiply( aArrowLength ); // construct a vector with the same length as the arrow, and pointing in the correct direction
+		Vector3D arrowVecEnd = new Vector3D( cenVec ).add( arrowVec );
+		Vector3D arrowVecHalf = new Vector3D( cenVec ).add( arrowVec.divide(3.0) );
+		
+		if ( aName.contains( "fidVecND" ) )
+		{
+			System.out.println("point "+ cenVec.toString() );
+			System.out.println("  dir "+ aVec.toString() );
+			System.out.println(" unit "+ aVec.asUnit().toString() );
+			System.out.println("arrow "+ arrowVec.toString() );
+			System.out.println("  end "+ arrowVecEnd.toString() );
+			System.out.println(" half "+ arrowVecHalf.toString() );
+		}
+		
+		//double shiftX = 0.0;//aVec.x()*aArrowLength/2.0;
+		//double shiftY = 0.0;//aVec.y()*aArrowLength/2.0;
+		//double shiftZ = 0.0;//aVec.z()*aArrowLength/2.0;
 		
 		/*if( aName.contains("mod") )
 		{
@@ -509,14 +523,27 @@ public class SvtGeometry {
 			System.out.println("gamma="+ Math.toDegrees(gamma) );
 		}*/
 		
-		arrowVol.setPosition( (aCen.x() + shiftX)/10.0, (aCen.y() + shiftY)/10.0, (aCen.z() + shiftZ)/10.0 ); // mm -> cm
+		//arrowVol.setPosition( (aCen.x() + shiftX)/10.0, (aCen.y() + shiftY)/10.0, (aCen.z() + shiftZ)/10.0 ); // mm -> cm
+		arrowVol.setPosition( arrowVecHalf.x()/10.0, arrowVecHalf.y()/10.0, arrowVecHalf.z()/10.0 ); // mm -> cm
 		
 		Geant4Basic refBallEndVol = new Geant4Basic( aName+"c", "orb", aRefBallRadius/10.0 ); // mm -> cm
-		refBallEndVol.setPosition( (aCen.x() + 2*shiftX)/10.0, (aCen.y() + 2*shiftY)/10.0, (aCen.z() + 2*shiftZ)/10.0 ); // mm -> cm
+		refBallEndVol.setPosition( arrowVecEnd.x()/10.0, arrowVecEnd.y()/10.0, arrowVecEnd.z()/10.0 ); // mm -> cm
+		
+		if ( aName.contains( "fidVecND" ) )
+		{
+			System.out.printf("theta %7.2f\n", Math.toDegrees(theta) );
+			System.out.printf("phi   %7.2f\n", Math.toDegrees(phi) );
+			System.out.printf("alpha %7.2f\n", Math.toDegrees(alpha) );
+			System.out.printf("beta  %7.2f\n", Math.toDegrees(beta) );
+			System.out.printf("gamma %7.2f\n", Math.toDegrees(gamma) );
+			System.out.println( refBallStartVol.gemcString() );
+			System.out.println( arrowVol.gemcString() );
+			System.out.println( refBallEndVol.gemcString() );
+		}
 		
 		if( aDisplayBallStart ) refBallStartVol.setMother( mTop );
 		if( aDisplayArrow ) arrowVol.setMother( mTop );
-		if( aDisplayBallEnd ) refBallStartVol.setMother( mTop );
+		if( aDisplayBallEnd ) refBallEndVol.setMother( mTop );
 	}
 	
 	
@@ -539,9 +566,9 @@ public class SvtGeometry {
 			
 			Point3D modLyrPos3D = new Point3D( aSectorRadius[l], 0.0, mRegionZ[aRegion] + mModuleLength/2.0 ); // centre of geometry
 			rotPhi.apply( modLyrPos3D );
-			System.out.println("modLyrPos3D "+ modLyrPos3D.toString() );
+			//System.out.println("modLyrPos3D "+ modLyrPos3D.toString() );
 			
-			modVol.setRotation("zyx", -aModRot, 0.0, 0.0 ); // GDML has active rotations, so negate x and z, and reverse the order                        
+			modVol.setRotation("xyz", 0.0, 0.0, -aModRot ); // GDML has active rotations, so negate x and z, the order is reversed implicitly                        
 			//System.out.println("modRot="+ Math.toDegrees( modRot ) );
 			
 			modVol.setPosition( modLyrPos3D.x()/10.0, modLyrPos3D.y()/10.0, modLyrPos3D.z()/10.0 ); // mm -> cm
@@ -560,8 +587,8 @@ public class SvtGeometry {
 		rotPhi.apply( modCenPos3D );
 		rotMod.apply( modCenVec3D );
 		
-		System.out.println("modCenPos3D "+ modCenPos3D.toString() );
-		System.out.println("modCenVec3D "+ modCenVec3D.toString() );
+		//System.out.println("modCenPos3D "+ modCenPos3D.toString() );
+		//System.out.println("modCenVec3D "+ modCenVec3D.toString() );
 		
 		// store centre of module for fiducials later
 		mModCenNPos = modCenPos3D;
@@ -636,7 +663,7 @@ public class SvtGeometry {
 	
 	
 	
-	private void _defineFiducialsNominal( int aRegion, int aSector, double aModRot, boolean aDisplayFids, boolean aDisplayArrow )
+	private void _defineFiducialsNominal( int aRegion, int aSector, double[] aSectorRadius, double aPhi, double aModRot, boolean aDisplayFids, boolean aDisplayArrow )
 	{
 		
 		Geant4Basic[] fidVols = new Geant4Basic[NFIDS];
@@ -647,52 +674,112 @@ public class SvtGeometry {
 		// Pk = PEEK, downstream
 		// mm
 		//
-		double fidOriginZ = -mModuleLength/2.0 + -62.13;
+		// fidOriginZ = from front end of physical sensor to central dowel hole
+		double fidOriginZ = mRegionZ[aRegion] + -62.13;
 		double fidCuX = 17.35;
 		double fidCuZ = fidOriginZ + -3.75;
 		double fidPkX = 3.50;
 		double fidPkZ = fidOriginZ + 402.64 + 2.50;
-		double fidY = 1.25; // half thickness of rohacell
 		
-		//System.out.printf("R%dS%02d % 8.3f\n", (r+1), (s+1), (fidPkZ - fidCuZ) );
+		// -- wirebond					0.300
+		// ---- silicon					0.320
+		// ------ epoxy/glue			0.065
+		// ---------- bus cable			0.078
+		// ------------ carbon fiber	0.190
+		// -------------- rohacell		2.500
+		// ------------ carbon fiber
+		// ---------- bus cable
+		// ------ epoxy
+		// ---- silicon
+		// -- wirebond
+		//
+		// backing structure thickness = 2.500 + 2*(0.190 + 0.078) = 3.036
+		// layer gap = 3.036 + 2*0.065 = 3.166
+		
+		double passiveMat = (CcdbGeomSvt.LAYRGAP - 2.50)/2.0; 
+		// fidY = inner side of U (outer) sensor layer subtracted down to the top of the backing structure
+		double fidY = aSectorRadius[1] - passiveMat;
+		
+		System.out.println("fidOriginZ="+ fidOriginZ );
+		System.out.println("fidCuX="+ fidCuX );
+		System.out.println("fidCuZ="+ fidCuZ );
+		System.out.println("fidPkX="+ fidPkX );
+		System.out.println("fidPkZ="+ fidPkZ );
+		System.out.println("fidY="+ fidY );
+		
+		//System.out.printf("R%dS%02|d % 8.3f\n", (r+1), (s+1), (fidPkZ - fidCuZ) );
 		
 		for( int f = 0; f < NFIDS; f++ )
 		{
 			fidVols[f] = new Geant4Basic("fidLyrN"+(f+1)+"_r"+(aRegion+1)+"s"+(aSector+1), "orb", mFidOrbRadius/10.0 ); // mm -> cm
 			Point3D fidPos3D = new Point3D();
 			
-			switch(f)
+			// step 1: set x and z coordinates first
+			//			x relative to centre of module
+			//			z relative to front edge of physical sensor layer
+			// step 2: set orientation about fiducial layer
+			// step 3: shift along x axis by radius
+			// step 4: rotate to correct sector
+			//
+			//								y
+			//				  4 			^
+			//			   o .^ 			|
+			//			o _./   			|
+			//		 o _./ 		    		|
+			//		  /      				|
+			//		 ' 						|
+			//	   3 <--------------------- 2 <-._
+			//								|     '. 
+			//	   o					    o       \
+			//	   o				  Cu+   oPk Cu- '
+			// x <---------------------o----+-o--o--1--------------------
+			//	    						|   
+			//	   o						o
+			//								|
+			//								|
+			//								|
+			//								|
+			//								|
+			//								|
+			//								|
+			//								|
+			
+			switch( f ) // step 1
 			{
 			case 0: // Cu +ve X
-				fidPos3D.set( fidCuX/10.0, fidY/10.0, fidCuZ/10.0 );
+				fidPos3D.set( fidCuX/10.0, 0.0, fidCuZ/10.0 ); // mm -> cm
 				break;
 			case 1: // Cu -ve X
-				fidPos3D.set( -fidCuX/10.0, fidY/10.0, fidCuZ/10.0 );
+				fidPos3D.set( -fidCuX/10.0, 0.0, fidCuZ/10.0 ); // mm -> cm
 				break;
 			case 2: // Pk
-				fidPos3D.set( -fidPkX/10.0, fidY/10.0, fidPkZ/10.0 );
+				fidPos3D.set( -fidPkX/10.0, 0.0, fidPkZ/10.0 ); // mm -> cm
 				break;
 			}
 			
-			Transformation3D fidTranslateModPos = new Transformation3D();
-			Transformation3D fidRotateModRot = new Transformation3D();
+			Transformation3D rotMod = new Transformation3D();
+			Transformation3D posMod = new Transformation3D();
+			Transformation3D rotSec = new Transformation3D();
 			
-			fidTranslateModPos.translateXYZ( mModCenNPos.x()/10.0, mModCenNPos.y()/10.0, mModCenNPos.z()/10.0 ); // mm -> cm
-			// =====
-			// -----
-			fidRotateModRot.rotateZ( aModRot ); // no minus sign... = not GEANT, therefore passive (sensible) rotation
-			// -----                ^
-			// =====
-			//System.out.println("fidRot="+ Math.toDegrees(modRot) );
+			double rotModZ = -mZRotationStart;
+			rotMod.rotateZ( rotModZ );					// step 2
+			posMod.translateXYZ( fidY/10.0, 0.0, 0.0 );	// step 3
+			rotSec.rotateZ( aPhi ); 					// step 4
 			
-			fidRotateModRot.apply( fidPos3D );
-			fidTranslateModPos.apply( fidPos3D );
+			//System.out.println( fidPos3D.toString() +" set x and z" );
+			rotMod.apply( fidPos3D );
+			//System.out.println( fidPos3D.toString() +" rotate Z " + Math.toDegrees(rotModZ) );
+			posMod.apply( fidPos3D );
+			//System.out.println( fidPos3D.toString() +" shift radius");
+			rotSec.apply( fidPos3D );
+			//System.out.println( fidPos3D.toString() +" rotate Z " + Math.toDegrees(aPhi));
+			//System.out.println();
+			
 			fidPos3Ds[f] = new Point3D( fidPos3D ); // save Point3D for calculating fiducial plane later
 			fidVols[f].setPosition( fidPos3D.x(), fidPos3D.y(), fidPos3D.z() ); // assign location to volume
-			//System.out.println( fidPos3D.toString() );
 			
 			if( aDisplayFids ) fidVols[f].setMother( mTop );
-			//System.out.println( fids[f].gemcString() );
+			//System.out.println( fidVols[f].gemcString() );
 			
 			int k = (_subSum( mNSect, aRegion ) + aSector)*NFIDS + f;
 			mFidNominal[k][0] = fidPos3D.x()*10.0; // cm -> mm
@@ -707,7 +794,6 @@ public class SvtGeometry {
 		fidPln3D.setPoint( fidPln3D.point().x()*10.0, fidPln3D.point().y()*10.0, fidPln3D.point().z()*10.0);
 		
 		_defineArrow("fidVecN_r"+(aRegion+1)+"s"+(aSector+1), fidPln3D.point(), fidPln3D.normal(), mRefBallRadius, mArrowDiameter, mArrowLength, aDisplayArrow, aDisplayArrow, false );
-		
 	}
 	
 	
@@ -726,19 +812,25 @@ public class SvtGeometry {
 			outputLine = String.format("R%dS%02dF%d, % 8.3f, % 8.3f, % 8.3f\n", aRegion+1, aSector+1, f+1, mFidNominalDeltas[k][0], mFidNominalDeltas[k][1], mFidNominalDeltas[k][2] );
 			_outputLine( mOutputNominalDeltas, outputLine );
 			
-			Point3D nominalPoint = new Point3D( mFidSurveyIdeals[k][0], mFidSurveyIdeals[k][1], mFidSurveyIdeals[k][2]);
-			Vector3D deltaVector = new Vector3D( mFidNominalDeltas[k][0], mFidNominalDeltas[k][1], mFidNominalDeltas[k][2] );
+			Vector3D nominalVec = new Vector3D( mFidNominal[k][0], mFidNominal[k][1], mFidNominal[k][2] );
+			Vector3D idealsVec = new Vector3D( mFidSurveyIdeals[k][0], mFidSurveyIdeals[k][1], mFidSurveyIdeals[k][2] );
+			Vector3D deltaVec = new Vector3D( mFidNominalDeltas[k][0], mFidNominalDeltas[k][1], mFidNominalDeltas[k][2] );
 			
-			double arrowLength = deltaVector.r()*mDeltaArrowFactor; // arrow misaligned?
+			double arrowLength = deltaVec.r()*mDeltaArrowFactor; // arrow misaligned?
+			//double arrowLength = 100.0; // mm
 			double refBallRadius = mRefBallRadius;
 			
-			System.out.println( nominalPoint.toString() );
-			System.out.println( deltaVector.toString() );
-			System.out.println("mag="+ deltaVector.mag() );
-			System.out.println("r="+ deltaVector.r() );
+			System.out.println();
+			System.out.println( "       nominal "+ nominalVec.toString() );
+			//System.out.printf(  "       nominal point %12s % 10.5f   % 10.5f   % 10.5f\n", " ", mFidNominal[k][0], mFidNominal[k][1], mFidNominal[k][2] );
+			System.out.println( " survey ideals "+ idealsVec.toString() );
+			//System.out.printf(  " survey ideals point %12s % 10.5f   % 10.5f   % 10.5f\n", " ", mFidSurveyIdeals[k][0], mFidSurveyIdeals[k][1], mFidSurveyIdeals[k][2] );
+			System.out.println( "nominal deltas "+ deltaVec.toString() );
+			//System.out.println("mag="+ deltaVec.mag() );
+			System.out.println("r="+ deltaVec.r() );
 			System.out.println("arrowLength="+ arrowLength );
 			
-			_defineArrow("fidVecND"+(f+1)+"_r"+(aRegion+1)+"s"+(aSector+1), nominalPoint, deltaVector, refBallRadius, mArrowDiameter, arrowLength, aDisplayArrow, false, false );
+			_defineArrow("fidVecND"+(f+1)+"_r"+(aRegion+1)+"s"+(aSector+1), idealsVec.toPoint3D(), deltaVec, refBallRadius, mArrowDiameter, arrowLength, aDisplayArrow, aDisplayArrow, aDisplayArrow );
 		}
 	}
 	
