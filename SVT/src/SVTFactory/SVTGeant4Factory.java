@@ -15,8 +15,8 @@ import org.jlab.geom.prim.Transformation3D;
 import org.jlab.geom.prim.Triangle3D;
 import org.jlab.geom.prim.Vector3D;
 
-import SVTMisc.Matrix;
-import SVTMisc.Utils;
+import Misc.Matrix;
+import Misc.Util;
 
 /**
  * <h1> Geometry for the SVT </h1>
@@ -36,7 +36,7 @@ import SVTMisc.Utils;
  * </ul>
  * 
  * @author pdavies
- * @version 1.0
+ * @version 0.0.2
  */
 
 public final class SVTGeant4Factory
@@ -104,6 +104,8 @@ public final class SVTGeant4Factory
 	//
 	// calculated on load()
 	public static int NLAYERS; // total number of layers in a sector
+	public static int NTOTALSECTORS; // total number of sectors for all regions
+	public static int NTOTALFIDUCIALS; // total number of fiducials for all sectors and regions
 	public static double[][] LAYERRADIUS; // radius to strip planes
 	public static double LAYERGAPTHK; // distance between pairs of layers within a sector
 	public static double MODULELEN;    // || DZ |  AZ  | DZ |MG| DZ |  AZ  | DZ |MG| DZ |  AZ  || DZ ||
@@ -131,6 +133,9 @@ public final class SVTGeant4Factory
 		// default behaviour
 		setRange( 1, NREGIONS, new int[]{ 1, 1, 1, 1 }, NSECTORS, 1, NMODULES ); // all regions, sectors, and modules 
 		//setAlignmentShift("ccdb");
+		
+		Geant4Basic top = new Geant4Basic("none", "Box", 0 );
+		motherVol.setMother( top );
 	}
 	
 	
@@ -283,6 +288,31 @@ public final class SVTGeant4Factory
 	
 	
 	/**
+	 * Converts linear index to Region, Sector, and Fiducial indices.
+	 * For use with data files.
+	 * 
+	 * @param aSurveyIndex an index used for fiducial survey data
+	 * @return int[] an array containing RSF indices
+	 * @throws IllegalArgumentException index out of bounds
+	 */
+	public static int[] convertSurveyIndex2RegionSectorFiducial( int aSurveyIndex ) throws IllegalArgumentException
+	{
+		if( aSurveyIndex < 0 || aSurveyIndex > NTOTALSECTORS*NFIDUCIALS-1 ){ throw new IllegalArgumentException("survey index out of bounds"); }
+		int region = -1, sector = -1, fiducial = -1;
+		for( int i = 0; i < NREGIONS; i++ )
+		{
+			int l0 = Util.subArraySum( NSECTORS, i   )*NFIDUCIALS;
+			int l1 = Util.subArraySum( NSECTORS, i+1 )*NFIDUCIALS;
+			if( i == NREGIONS-1 ){ l1 = l0 + NSECTORS[NREGIONS-1]*NFIDUCIALS; }
+			if( l0 <= aSurveyIndex && aSurveyIndex <= l1-1 ){ region = i; break; }
+		}		
+		sector = aSurveyIndex / NFIDUCIALS - Util.subArraySum( NSECTORS, region );
+		fiducial = aSurveyIndex % NFIDUCIALS;
+		return new int[]{ region, sector, fiducial };
+	}
+	
+	
+	/**
 	 * Converts RS indices to linear index.
 	 * 
 	 * @param aRegion an index starting from 0
@@ -294,36 +324,32 @@ public final class SVTGeant4Factory
 	{
 		if( aRegion < 0 || aRegion > NREGIONS-1 ){ throw new IllegalArgumentException("region out of bounds"); }
 		if( aSector < 0 || aSector > NSECTORS[aRegion]-1 ){ throw new IllegalArgumentException("sector out of bounds"); }
-		return Utils.subArraySum( NSECTORS, aRegion ) + aSector;
+		return Util.subArraySum( NSECTORS, aRegion ) + aSector;
 	}
 	
 	
 	/**
-	 * Converts linear index to Region, Sector, and Fiducial indices.
-	 * Useful for reading data files.
+	 * Converts linear index to Region and Sector indices.
+	 * For use with data files.
 	 * 
-	 * @param aSurveyIndex an index used for fiducial survey data
-	 * @return int[] an array containing RSF indices
+	 * @param aSvtIndex
+	 * @return int[] an array containing RS indices
 	 * @throws IllegalArgumentException index out of bounds
 	 */
-	public static int[] convertSurveyIndex2RegionSectorFiducial( int aSurveyIndex ) throws IllegalArgumentException
+	public static int[] convertSvtIndex2RegionSector( int aSvtIndex )
 	{
-		if( aSurveyIndex < 0 || aSurveyIndex > NREGIONS-1 ){ throw new IllegalArgumentException("survey index out of bounds"); }
+		if( aSvtIndex < 0 || aSvtIndex > NTOTALSECTORS-1 ){ throw new IllegalArgumentException("svt index out of bounds"); }
 		
-		int region = -1, sector = -1, fiducial = -1;
+		int region = -1, sector = -1;
 		for( int i = 0; i < NREGIONS; i++ )
 		{
-			int l0 = Utils.subArraySum( NSECTORS, i   )*NFIDUCIALS;
-			int l1 = Utils.subArraySum( NSECTORS, i+1 )*NFIDUCIALS;
-			if( i == NREGIONS-1 ){ l1 = l0 + NSECTORS[NREGIONS-1]*NFIDUCIALS; }
-			if( l0 <= aSurveyIndex && aSurveyIndex <= l1-1 ){ region = i; break; }
+			int l0 = Util.subArraySum( NSECTORS, i   );
+			int l1 = Util.subArraySum( NSECTORS, i+1 );
+			if( i == NREGIONS-1 ){ l1 = l0 + NSECTORS[NREGIONS-1]; }
+			if( l0 <= aSvtIndex && aSvtIndex <= l1-1 ){ region = i; break; }
 		}
-		//System.out.println("l="+l[0]+" "+l[1]+" "+l[2]+" "+l[3]+" "+(l[3] + NSECTORS[3]*NFIDUCIALS-1));
-		
-		sector = aSurveyIndex / NFIDUCIALS - Utils.subArraySum( NSECTORS, region );
-		fiducial = aSurveyIndex % NFIDUCIALS;
-		
-		return new int[]{ region, sector, fiducial };
+		sector = aSvtIndex - Util.subArraySum( NSECTORS, region );
+		return new int[]{ region, sector };
 	}
 	
 	
@@ -520,7 +546,7 @@ public final class SVTGeant4Factory
 	public void setAlignmentShift( String aFilename )
 	{
 		filenameShiftSurvey = aFilename;			
-		try{ SHIFTDATA = Utils.inputTaggedData( filenameShiftSurvey, NSHIFTDATARECLEN ); } // 3 translation(x,y,z), 4 rotation(x,y,z,a)
+		try{ SHIFTDATA = Util.inputTaggedData( filenameShiftSurvey, NSHIFTDATARECLEN ); } // 3 translation(x,y,z), 4 rotation(x,y,z,a)
 		catch( Exception e ){ e.printStackTrace(); System.exit(-1); } // trigger fatal error
 		if( SHIFTDATA == null ){ System.err.println("stop: SHIFTDATA is null after reading file \""+filenameShiftSurvey+"\""); System.exit(-1); }
 		bShift = true;
@@ -535,12 +561,10 @@ public final class SVTGeant4Factory
 	public void setAlignmentShift( ConstantProvider cp )
 	{
 		System.out.println("reading fiducial survey data from database");
-		int nSectorsTotal = convertRegionSector2SvtIndex( NREGIONS-1, NSECTORS[NREGIONS-1]-1)+1;
-		//System.out.println("n="+nSectorsTotal );
 		
-		SHIFTDATA = new double[nSectorsTotal][];
+		SHIFTDATA = new double[NTOTALSECTORS][];
 		
-		for( int i = 0; i < nSectorsTotal; i++ )
+		for( int i = 0; i < NTOTALSECTORS; i++ )
 		{
 			double tx = cp.getDouble(getCcdbPath()+"alignment/tx", i );
 			double ty = cp.getDouble(getCcdbPath()+"alignment/ty", i );
@@ -549,7 +573,7 @@ public final class SVTGeant4Factory
 			double ry = cp.getDouble(getCcdbPath()+"alignment/ry", i );
 			double rz = cp.getDouble(getCcdbPath()+"alignment/rz", i );
 			double ra = cp.getDouble(getCcdbPath()+"alignment/ra", i );
-			SHIFTDATA[i] = new double[]{ tx, ty, tz, rx, ry, rz, ra };
+			SHIFTDATA[i] = new double[]{ tx, ty, tz, rx, ry, rz, Math.toRadians(ra) };
 			//System.out.printf("%d % 8.3f % 8.3f % 8.3f % 8.3f % 8.3f % 8.3f % 8.3f\n", i+1, tx, ty, tz, rx, ry, rz, ra );
 		}
 		bShift = true;
@@ -572,7 +596,7 @@ public final class SVTGeant4Factory
 	 * 
 	 * @return double[][] an array of translations and axis-angle rotations of the form { tx, ty, tz, rx, ry, rz, ra }
 	 */
-	public double[][] getShiftData()
+	public double[][] getAlignmentShiftData()
 	{
 		if( SHIFTDATA == null ){ System.err.println("stop: SHIFTDATA requested is null"); System.exit(-1); }
 		return SHIFTDATA;
@@ -598,7 +622,7 @@ public final class SVTGeant4Factory
 	 */
 	public void appendName( String aTag )
 	{
-		Utils.appendName( motherVol, aTag );
+		Util.appendName( motherVol, aTag );
 	}
 	
 	
@@ -676,14 +700,14 @@ public final class SVTGeant4Factory
 			SECTOR0 = Math.toRadians(cp.getDouble( ccdbPath+"svt/zRotationStart", 0 ));
 			LAYERPOSFAC = cp.getDouble( ccdbPath+"svt/modulePosFac", 0 );
 			
-			SILICONTHK = cp.getDouble( ccdbPath+"svt/siliconThick", 0 );
+			SILICONTHK = cp.getDouble( ccdbPath+"svt/siliconThk", 0 );
 			PHYSSENLEN = cp.getDouble( ccdbPath+"svt/physSenLen", 0 );
 			PHYSSENWID = cp.getDouble( ccdbPath+"svt/physSenWid", 0 );
 			ACTIVESENLEN = cp.getDouble( ccdbPath+"svt/activeSenLen", 0 );
 			ACTIVESENWID = cp.getDouble( ccdbPath+"svt/activeSenWid", 0 );
 			DEADZNLEN = cp.getDouble( ccdbPath+"svt/deadZnLen", 0 );
 			DEADZNWID = cp.getDouble( ccdbPath+"svt/deadZnWid", 0 );
-			MICROGAPLEN = cp.getDouble( ccdbPath+"svt/microGap", 0 );
+			MICROGAPLEN = cp.getDouble( ccdbPath+"svt/microGapLen", 0 );
 			
 			FIDCUX = cp.getDouble( ccdbPath+"fiducial/CuX", 0 );
 			FIDPKX = cp.getDouble( ccdbPath+"fiducial/PkX", 0 );
@@ -810,6 +834,9 @@ public final class SVTGeant4Factory
 				}
 			}
 			
+			NTOTALSECTORS = convertRegionSector2SvtIndex( NREGIONS-1, NSECTORS[NREGIONS-1]-1 )+1;
+			NTOTALFIDUCIALS = convertRegionSectorFid2SurveyIndex(NREGIONS-1, NSECTORS[NREGIONS-1]-1, NFIDUCIALS-1  )+1;
+			
 			// check one constant from each table
 			//if( NREGIONS == 0 || NSECTORS[0] == 0 || FIDCUX == 0 || MATERIALS[0][0] == 0 || SUPPORTRADIUS[0] == 0 )
 				//throw new NullPointerException("please load the following tables from CCDB in "+ccdbPath+"\n svt\n region\n support\n fiducial\n material\n");
@@ -824,6 +851,7 @@ public final class SVTGeant4Factory
 	 */
 	public void putParameters()
 	{
+		System.out.println("populating HashMap with parameters");
 		properties.put("author", "P. Davies");
 		properties.put("email", "pdavies@jlab.org");
 		properties.put("date", "7/15/16");
@@ -831,9 +859,12 @@ public final class SVTGeant4Factory
 		parameters.put("unit_length", "mm");
 		parameters.put("unit_angle", "deg");
 		parameters.put("nregions", Integer.toString(NREGIONS) );
+		for( int r = 0; r < NREGIONS; r++){ parameters.put("nsectors_r"+(r+1), Integer.toString(NSECTORS[r]) ); }
 		parameters.put("nmodules", Integer.toString(NMODULES) );
 		parameters.put("nsensors", Integer.toString(NSENSORS) );
 		parameters.put("nstrips", Integer.toString(NSTRIPS) );
+		parameters.put("nlayers", Integer.toString(NLAYERS) );
+		parameters.put("ntotalsectors", Integer.toString(NTOTALSECTORS) );
 		parameters.put("readout_pitch", Double.toString(READOUTPITCH) );
 		parameters.put("silicon_thk", Double.toString(SILICONTHK) );
 		// ...
@@ -851,21 +882,19 @@ public final class SVTGeant4Factory
 	 * 
 	 * @param aRegion an index starting from 0
 	 * @param aSector an index starting from 0
-	 * @param aRadius an index starting from 0
-	 * @param aZ an index starting from 0
-	 * @param aFlip an index starting from 0. adds a 180 deg rotation at the start of the sequence
+	 * @param aRadius transverse distance from beamline
+	 * @param aZ longitudinal distance along beamline
 	 * @return Transformation3D a sequence of transformations
 	 * @throws IllegalArgumentException indices out of bounds
 	 */
-	public static Transformation3D getLabFrame( int aRegion, int aSector, double aRadius, double aZ, boolean aFlip ) throws IllegalArgumentException
+	public static Transformation3D getLabFrame( int aRegion, int aSector, double aRadius, double aZ ) throws IllegalArgumentException
 	{
 		if( aRegion < 0 || aRegion > NREGIONS-1 ){ throw new IllegalArgumentException("region out of bounds"); }
 		if( aSector < 0 || aSector > NSECTORS[aRegion]-1 ){ throw new IllegalArgumentException("sector out of bounds"); }
 		
 		double phi = -2.0*Math.PI/NSECTORS[aRegion]*aSector + PHI0; // location around target
 		Transformation3D labFrame = new Transformation3D();
-		if( aFlip ) { labFrame.rotateZ( Math.toRadians(180) ); } // flip U layer
-		labFrame.rotateZ( -Math.toRadians(SECTOR0) ).translateXYZ( aRadius, 0, aZ ).rotateZ( phi );
+		labFrame.rotateZ( -SECTOR0 ).translateXYZ( aRadius, 0, aZ ).rotateZ( phi );
 		return labFrame;
 	}
 	
@@ -908,13 +937,13 @@ public final class SVTGeant4Factory
 		if( aSector < 0 || aSector > NSECTORS[aRegion]-1 ){ throw new IllegalArgumentException("sector out of bounds"); }
 		if( aModule < 0 || aModule > NMODULES-1 ){ throw new IllegalArgumentException("module out of bounds"); }
 		
-		Line3D stripLine = createStrip( aStrip );
+		Line3D stripLine = createStrip( aStrip, aModule ); // strip end points are returned relative to the centre of the layer 
 		
 		//System.out.printf("%d %d %d %d\n", aRegion, aSector, aModule, aStrip);
 		
 		double r = LAYERRADIUS[aRegion][aModule];
 		double z = Z0ACTIVE[aRegion] + STRIPLENMAX/2;
-		Transformation3D labFrame = getLabFrame( aRegion, aSector, r, z, (aModule == 0) ? true : false ); // flip U layer (m=0)
+		Transformation3D labFrame = getLabFrame( aRegion, aSector, r, z );
 		labFrame.apply( stripLine );
 		
 		//if( bShift ) _applyShift( stripLine.origin(), SHIFTDATA[convertRegionSector2SvtIndex( aRegion, aSector )], scaleT, scaleR );
@@ -956,13 +985,16 @@ public final class SVTGeant4Factory
 	 * Returns a sensor strip.
 	 * 
 	 * @param aStrip an index starting from 0
+	 * @param aModule an index starting from 0
 	 * @return Line3D a strip in the local frame
 	 * @throws IllegalArgumentException index out of bounds
 	 */
-	public Line3D createStrip( int aStrip ) throws IllegalArgumentException // local frame
+	public Line3D createStrip( int aStrip, int aModule ) throws IllegalArgumentException // local frame
 	{
 		if( aStrip < 0 || aStrip > NSTRIPS-1 ){ throw new IllegalArgumentException("strip out of bounds"); }
+		if( aModule < 0 || aModule > NMODULES-1 ){ throw new IllegalArgumentException("module out of bounds"); }
 		
+		//     ACTIVESENWID
 		//	   + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 		//     |                                                                         | <- blank intermediate strips, not used
 		//   0 |=========================================================================|
@@ -976,6 +1008,7 @@ public final class SVTGeant4Factory
 		// 255 |=======-------___________                                                |      |  y
 		//     |                         ----------                                      |      | out
 		//     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +      +----> z
+		// (0,0)															  ACTIVESENLEN
 		
 		// there are 513 strips in total starting on the hybrid side of the sensor module, but only 256 are sensitive / used in the readout
 		// the readout pitch is the distance between sensitive strips along the hybrid side
@@ -1048,6 +1081,7 @@ public final class SVTGeant4Factory
 		Line3D stripLine = new Line3D( new Point3D( x0, 0.0, z0 ), new Point3D( x1, 0.0, z1 ) );
 		Transformation3D transform = new Transformation3D();
 		transform.translateXYZ( DEADZNWID - MODULEWID/2, 0, DEADZNLEN - MODULELEN/2 ); // align to centre of layer
+		if( aModule == 0 ) { transform.rotateZ( Math.toRadians(180) ); } // flip U layer
 		transform.apply( stripLine );
 		
 		return stripLine;
@@ -1066,6 +1100,26 @@ public final class SVTGeant4Factory
 		_applyShift( aPoint, aShift, aNominalCenter, scaleT, scaleR );
 	}
 	
+	
+	/**
+	 * Returns locations of shifted fiducial points.
+	 * 
+	 * @return double[][] an array of data in fiducial survey format.
+	 */
+	public double[][] getShiftedFiducialData()
+	{
+		double [][] data = new double[NTOTALSECTORS*NFIDUCIALS][];
+		for( int region = 0; region < NREGIONS; region++ )
+			for( int sector = 0; sector < NSECTORS[region]; sector++ )
+			{
+				Point3D fidPos3Ds[] = getShiftedFiducials( region, sector );
+				for( int fid = 0; fid < NFIDUCIALS; fid++ )
+					data[SVTGeant4Factory.convertRegionSectorFid2SurveyIndex( region, sector, fid )] = new double[]{ fidPos3Ds[fid].x(), fidPos3Ds[fid].y(), fidPos3Ds[fid].z() };
+			}
+		return data;
+	}
+	
+	
 	/**
 	 * Returns locations of nominal fiducial points.
 	 * 
@@ -1073,13 +1127,16 @@ public final class SVTGeant4Factory
 	 */
 	public static double[][] getNominalFiducialData()
 	{
-		double [][] data = new double[SVTGeant4Factory.convertRegionSectorFid2SurveyIndex( NREGIONS-1, NSECTORS[NREGIONS-1]-1, NFIDUCIALS-1 )+1][];
-		for( int region = 0; region < SVTGeant4Factory.NREGIONS; region++ )
-			for( int sector = 0; sector < SVTGeant4Factory.NSECTORS[region]; sector++ )
+		double [][] data = new double[NTOTALSECTORS*NFIDUCIALS][];
+		for( int region = 0; region < NREGIONS; region++ )
+			for( int sector = 0; sector < NSECTORS[region]; sector++ )
 			{
 				Point3D fidPos3Ds[] = getNominalFiducials( region, sector );
-				for( int fid = 0; fid < SVTGeant4Factory.NFIDUCIALS; fid++ )
-					data[SVTGeant4Factory.convertRegionSectorFid2SurveyIndex( region, sector, fid )] = new double[]{ fidPos3Ds[fid].x(), fidPos3Ds[fid].y(), fidPos3Ds[fid].z() };
+				for( int fid = 0; fid < NFIDUCIALS; fid++ )
+				{
+					data[SVTGeant4Factory.convertRegionSectorFid2SurveyIndex( region, sector, fid )] 
+							= new double[]{ fidPos3Ds[fid].x(), fidPos3Ds[fid].y(), fidPos3Ds[fid].z() };
+				}
 			}
 		return data;
 	}
@@ -1103,7 +1160,7 @@ public final class SVTGeant4Factory
 		Triangle3D fidTri3D = new Triangle3D( fidPos3Ds[0], fidPos3Ds[1], fidPos3Ds[2] );
 		
 		for( int f = 0; f < NFIDUCIALS; f++ )
-			_applyShift( fidPos3Ds[f], getShiftData()[convertRegionSector2SvtIndex( aRegion, aSector )], fidTri3D.center(), scaleT, scaleR );
+			_applyShift( fidPos3Ds[f], getAlignmentShiftData()[convertRegionSector2SvtIndex( aRegion, aSector )], fidTri3D.center(), scaleT, scaleR );
 		
 		return fidPos3Ds;
 	}
@@ -1128,7 +1185,7 @@ public final class SVTGeant4Factory
 		double copperWideThk = 2.880;
 		double radius = SUPPORTRADIUS[aRegion] + copperWideThk;
 		
-		Transformation3D labFrame = getLabFrame( aRegion, aSector, radius, fidOriginZ, false );
+		Transformation3D labFrame = getLabFrame( aRegion, aSector, radius, fidOriginZ );
 		
 		for( int f = 0; f < NFIDUCIALS; f++ )
 			labFrame.apply( fidPos3Ds[f] );
@@ -1186,10 +1243,11 @@ public final class SVTGeant4Factory
 		
 		for( int region = regionMin-1; region < regionMax; region++ ) // NREGIONS
 		{
+			//System.out.println("r "+region);
 			Geant4Basic regionVol = createRegion( region );
 			regionVol.setMother( motherVol );
-			regionVol.setName(  regionVol.getName() + region );
-			Utils.appendChildrenName(regionVol, "_r"+ region );
+			regionVol.setName( regionVol.getName() + (region+1) );
+			Util.appendChildrenName(regionVol, "_r"+ (region+1) );
 		}
 	}
 	
@@ -1205,7 +1263,7 @@ public final class SVTGeant4Factory
 	{
 		if( aRegion < 0 || aRegion > NREGIONS-1 ){ throw new IllegalArgumentException("region out of bounds"); }
 		
-		Geant4Basic regionVol = new Geant4Basic("region", "box", 0 );
+		Geant4Basic regionVol = new Geant4Basic("region", "Box", 0 );
 		//Geant4Basic regionVolDisplay = new Geant4Basic("region", "tube",  );
 		
 		// pin regionVol to fiducial origin along z?
@@ -1216,11 +1274,12 @@ public final class SVTGeant4Factory
 		
 		for( int sector = sectorMin[aRegion]-1; sector < sectorMax[aRegion]; sector++ ) // NSECTORS[region]
 		{
+			//System.out.println(" s "+sector);
 			Geant4Basic sectorVol = createSector();
 			sectorVol.setMother( regionVol );
 			
-			sectorVol.setName( sectorVol.getName() + sector ); // append name
-			Utils.appendChildrenName( sectorVol, "_s"+ sector ); // append tag to end of name (material replacement search fails if it's prepended)
+			sectorVol.setName( sectorVol.getName() + (sector+1) ); // append name
+			Util.appendChildrenName( sectorVol, "_s"+ (sector+1) ); // append tag to end of name (material replacement search fails if it's prepended)
 			
 			double phi = -2.0*Math.PI/NSECTORS[aRegion]*sector + PHI0; // module rotation about target / origin
 			double psi = phi - SECTOR0; // module rotation about centre of geometry
@@ -1246,11 +1305,14 @@ public final class SVTGeant4Factory
 				Point3D[] fidPos3Ds = getNominalFiducials( aRegion, sector );
 				Triangle3D fidTri3D = new Triangle3D( fidPos3Ds[0], fidPos3Ds[1], fidPos3Ds[2] );
 				
-				double [] shift = getShiftData()[convertRegionSector2SvtIndex( aRegion, sector )].clone();
+				//System.out.println("rs "+ convertRegionSector2SvtIndex( aRegion, sector ));
+				double[] shift = getAlignmentShiftData()[convertRegionSector2SvtIndex( aRegion, sector )].clone();
+				
 				Vector3D vec = new Vector3D( shift[3], shift[4], shift[5] ).asUnit();
-				vec.scale(-100);
+				vec.scale( (shift[6] == 0) ? 0 : 10 ); // length in mm, but only if non-zero angle
 				//vec.show();
-				Geant4Basic vecVol = Utils.createArrow("rotAxis"+sector, vec, 2.0, 1.0, true, true, false );
+				
+				Geant4Basic vecVol = Util.createArrow("rotAxis"+sector, vec, 2.0, 1.0, true, true, false );
 				vecVol.setPosition( fidTri3D.center().x()*0.1, fidTri3D.center().y()*0.1, fidTri3D.center().z()*0.1 );
 				vecVol.setMother( regionVol );
 				//System.out.println( vecVol.gemcString() );
@@ -1259,11 +1321,11 @@ public final class SVTGeant4Factory
 				double d = shift[6]/n;
 				for( int i = 1; i < n; i++ )
 				{
-					System.out.println( "vol "+ i );
-					Geant4Basic stepVol = Utils.clone( sectorVol, regionVol );
+					//System.out.println( "vol "+ i );
+					Geant4Basic stepVol = Util.clone( sectorVol, regionVol );
 					//stepVol.setMother( new Geant4Basic("dummy", "Box", 0 ) );
 					stepVol.setMother(regionVol);
-					Utils.appendName( stepVol, "_"+i );
+					Util.appendName( stepVol, "_"+i );
 					//Utils.shiftPosition( stepVol, 0, i, 0);
 					shift[6] = i*d;
 					_applyShift( stepVol, shift, fidTri3D.center(), scaleT, scaleR );
@@ -1272,7 +1334,7 @@ public final class SVTGeant4Factory
 						//System.out.println( stepVol.getChildren().get(j).gemcString() );
 				}
 				
-				_applyShift( sectorVol, getShiftData()[convertRegionSector2SvtIndex( aRegion, sector )], fidTri3D.center(), scaleT, scaleR );
+				_applyShift( sectorVol, getAlignmentShiftData()[convertRegionSector2SvtIndex( aRegion, sector )], fidTri3D.center(), scaleT, scaleR );
 				//System.out.println("S "+sectorVol.gemcString() );
 			}
 		}
@@ -1318,7 +1380,7 @@ public final class SVTGeant4Factory
 			moduleVols.add( createModule() );
 			moduleVols.get(module).setMother( sectorVol );
 			moduleVols.get(module).setName( moduleVols.get(module).getName() + module );
-			Utils.appendChildrenName( moduleVols.get(module), "_m"+ module );
+			Util.appendChildrenName( moduleVols.get(module), "_m"+ (module+1) );
 			
 			double moduleRadius = 0.0;
 			switch( module ) 
@@ -1370,7 +1432,7 @@ public final class SVTGeant4Factory
 			sensorVols.add( createSensorPhysical() ); // includes active and dead zones as children
 			sensorVols.get(sensor).setMother( moduleVol );
 			sensorVols.get(sensor).setName( sensorVols.get(sensor).getName() + sensor ); // add switch for hybrid, intermediate and far labels?
-			Utils.appendChildrenName( sensorVols.get(sensor), "_sp"+ sensor );
+			Util.appendChildrenName( sensorVols.get(sensor), "_sp"+ (sensor+1) );
 			// module length = || DZ |  AL  | DZ |MG| DZ |  AL  | DZ |MG| DZ |  AL  | DZ ||
 			sensorVols.get(sensor).setPosition( 0.0, 0.0, (DEADZNLEN + sensor*( ACTIVESENLEN + DEADZNLEN + MICROGAPLEN + DEADZNLEN) - MODULELEN/2.0 + ACTIVESENLEN/2.0)*0.1 );
 		}
@@ -1410,7 +1472,7 @@ public final class SVTGeant4Factory
 		
 		for( int deadZn = 0; deadZn < deadZnVols.size(); deadZn++ )
 		{
-			deadZnVols.get(deadZn).setName( deadZnVols.get(deadZn).getName() + deadZn );
+			deadZnVols.get(deadZn).setName( deadZnVols.get(deadZn).getName() + (deadZn+1) );
 			deadZnVols.get(deadZn).setMother(senPhysicalVol);
 			switch( deadZn )
 			{
@@ -1609,11 +1671,11 @@ public final class SVTGeant4Factory
 		tx *= aScaleT;
 		ty *= aScaleT;
 		tz *= aScaleT;
-		ra  = aScaleR*Math.toRadians(ra);
+		ra  = aScaleR*ra;
 		
 		//System.out.println();
 		//System.out.printf("PN: % 8.3f % 8.3f % 8.3f\n", aPoint.x(), aPoint.y(), aPoint.z() );
-		System.out.printf("ST: % 8.3f % 8.3f % 8.3f\n", tx, ty, tz );
+		//System.out.printf("ST: % 8.3f % 8.3f % 8.3f\n", tx, ty, tz );
 		//System.out.printf("SR: % 8.3f % 8.3f % 8.3f % 8.3f\n", rx, ry, rz, Math.toDegrees(ra) );
 		//System.out.printf("SC: % 8.3f % 8.3f % 8.3f\n", aNominalCenter.x(), aNominalCenter.y(), aNominalCenter.z() );
 				
@@ -1627,7 +1689,7 @@ public final class SVTGeant4Factory
 			//System.out.printf("PC: % 8.3f % 8.3f % 8.3f\n", aPoint.x(), aPoint.y(), aPoint.z() );
 			
 			Vector3D vecAxis = new Vector3D( rx, ry, rz ).asUnit();
-			System.out.printf("SR: % 8.3f % 8.3f % 8.3f % 8.3f\n", vecAxis.x(), vecAxis.y(), vecAxis.z(), Math.toDegrees(ra) );
+			//System.out.printf("SR: % 8.3f % 8.3f % 8.3f % 8.3f\n", vecAxis.x(), vecAxis.y(), vecAxis.z(), Math.toDegrees(ra) );
 			
 			// http://stackoverflow.com/questions/8363493/hiding-system-out-print-calls-of-a-class
 			PrintStream originalStream = System.out;
