@@ -5,6 +5,28 @@ import org.jlab.geom.prim.Line3D;
 import org.jlab.geom.prim.Point3D;
 import org.jlab.geom.prim.Transformation3D;
 
+import Alignment.AlignmentFactory;
+
+/**
+ * <h1> Geometry for the SVT </h1>
+ * 
+ * length unit: mm (3D Primitives), cm (Geant4Basic volume positions) <br>
+ * angle unit: deg <br>
+ * 
+ * Conventions:
+ * <ul>
+ * <li> svt = four concentric regions / superlayers </li>
+ * <li> region / superlayer = ring of a variable number of sectors </li>
+ * <li> sector module = pair of sensor  modules and backing structure, connected and stabilised by copper and peek supports </li>
+ * <li> sensor module = triplet of sensors </li>
+ * <li> sensor = silicon with etched strips in active region </li>
+ * <li> layer = plane of sensitive strips, spanning active regions of module </li>
+ * <li> strip = sensitive line </li>
+ * </ul>
+ * 
+ * @author pdavies
+ * @version 0.1.0
+ */
 public class SVTStripFactory
 {
 	private boolean bShift = false; // switch to select whether alignment shifts are applied
@@ -204,8 +226,8 @@ public class SVTStripFactory
 	public Line3D getShiftedStrip( int aRegion, int aSector, int aStrip, int aModule )
 	{
 		Line3D stripLine = getNominalStrip( aRegion, aSector, aStrip, aModule );
-		SVTAlignmentFactory.applyShift( stripLine.origin(), SVTConstants.getAlignmentShiftData()[SVTConstants.convertRegionSector2SvtIndex( aRegion, aSector )], SVTAlignmentFactory.getNominalFiducialCenter( aRegion, aSector ), scaleT, scaleR );
-		SVTAlignmentFactory.applyShift( stripLine.end(),    SVTConstants.getAlignmentShiftData()[SVTConstants.convertRegionSector2SvtIndex( aRegion, aSector )], SVTAlignmentFactory.getNominalFiducialCenter( aRegion, aSector ), scaleT, scaleR );
+		AlignmentFactory.applyShift( stripLine.origin(), SVTConstants.getAlignmentShiftData()[SVTConstants.convertRegionSector2SvtIndex( aRegion, aSector )], SVTAlignmentFactory.getNominalFiducialCenter( aRegion, aSector ), scaleT, scaleR );
+		AlignmentFactory.applyShift( stripLine.end(),    SVTConstants.getAlignmentShiftData()[SVTConstants.convertRegionSector2SvtIndex( aRegion, aSector )], SVTAlignmentFactory.getNominalFiducialCenter( aRegion, aSector ), scaleT, scaleR );
 		return stripLine;
 	}
 	
@@ -235,7 +257,7 @@ public class SVTStripFactory
 	 * @param aRegion an index starting from 0
 	 * @param aSector an index starting from 0
 	 * @param aModule an index starting from 0
-	 * @return Point3D[] array of corners in order ( origin, max width, max width & max length, max length )
+	 * @return Point3D[] array of corners in order ( origin, max width, max width and max length, max length )
 	 */
 	public Point3D[] getLayerCorners( int aRegion, int aSector, int aModule )
 	{

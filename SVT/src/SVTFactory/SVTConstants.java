@@ -7,8 +7,29 @@ import org.jlab.clasrec.utils.DatabaseConstantProvider;
 import org.jlab.geom.base.ConstantProvider;
 import org.jlab.geom.prim.Transformation3D;
 
+import Alignment.AlignmentFactory;
 import Misc.Util;
 
+/**
+ * <h1> Geometry for the SVT </h1>
+ * 
+ * length unit: mm (3D Primitives), cm (Geant4Basic volume positions) <br>
+ * angle unit: deg <br>
+ * 
+ * Conventions:
+ * <ul>
+ * <li> svt = four concentric regions / superlayers </li>
+ * <li> region / superlayer = ring of a variable number of sectors </li>
+ * <li> sector module = pair of sensor  modules and backing structure, connected and stabilised by copper and peek supports </li>
+ * <li> sensor module = triplet of sensors </li>
+ * <li> sensor = silicon with etched strips in active region </li>
+ * <li> layer = plane of sensitive strips, spanning active regions of module </li>
+ * <li> strip = sensitive line </li>
+ * </ul>
+ * 
+ * @author pdavies
+ * @version 0.1.0
+ */
 public class SVTConstants
 {
 	private static String ccdbPath = "/geometry/cvt/svt/";
@@ -70,7 +91,6 @@ public class SVTConstants
 	public static double MODULEWID; // || DZ | AZ | DZ ||
 	
 	// data for alignment shifts
-	public static int NSHIFTDATARECLEN = 7;
 	private static double[][] SHIFTDATA = null;
 	private static String filenameShiftSurvey = null;
 	
@@ -325,7 +345,7 @@ public class SVTConstants
 	public static void loadAlignmentShifts( String aFilename )
 	{
 		filenameShiftSurvey = aFilename;			
-		try{ SHIFTDATA = Util.inputTaggedData( filenameShiftSurvey, NSHIFTDATARECLEN ); } // 3 translation(x,y,z), 4 rotation(x,y,z,a)
+		try{ SHIFTDATA = Util.inputTaggedData( filenameShiftSurvey, AlignmentFactory.NSHIFTDATARECLEN ); } // 3 translation(x,y,z), 4 rotation(x,y,z,a)
 		catch( Exception e ){ e.printStackTrace(); System.exit(-1); } // trigger fatal error
 		if( SHIFTDATA == null ){ System.err.println("stop: SHIFTDATA is null after reading file \""+filenameShiftSurvey+"\""); System.exit(-1); }
 	}
@@ -395,7 +415,7 @@ public class SVTConstants
 	 * Converts linear index to Region and Sector indices.
 	 * For use with data files.
 	 * 
-	 * @param aSvtIndex
+	 * @param aSvtIndex an index starting from 0
 	 * @return int[] an array containing RS indices
 	 * @throws IllegalArgumentException index out of bounds
 	 */

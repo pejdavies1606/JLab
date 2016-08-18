@@ -12,8 +12,29 @@ import org.jlab.geom.prim.Transformation3D;
 import org.jlab.geom.prim.Triangle3D;
 import org.jlab.geom.prim.Vector3D;
 
+import Alignment.AlignmentFactory;
 import Misc.Util;
 
+/**
+ * <h1> Geometry for the SVT </h1>
+ * 
+ * length unit: mm (3D Primitives), cm (Geant4Basic volume positions) <br>
+ * angle unit: deg <br>
+ * 
+ * Conventions:
+ * <ul>
+ * <li> svt = four concentric regions / superlayers </li>
+ * <li> region / superlayer = ring of a variable number of sectors </li>
+ * <li> sector module = pair of sensor  modules and backing structure, connected and stabilised by copper and peek supports </li>
+ * <li> sensor module = triplet of sensors </li>
+ * <li> sensor = silicon with etched strips in active region </li>
+ * <li> layer = plane of sensitive strips, spanning active regions of module </li>
+ * <li> strip = sensitive line </li>
+ * </ul>
+ * 
+ * @author pdavies
+ * @version 0.1.0
+ */
 public class SVTVolumeFactory
 {
 	private final Geant4Basic motherVol = new Geant4Basic("svt", "Box", 0,0,0 );
@@ -188,13 +209,13 @@ public class SVTVolumeFactory
 					Util.appendName( stepVol, "_"+i );
 					//Utils.shiftPosition( stepVol, 0, i, 0);
 					shift[6] = i*d;
-					SVTAlignmentFactory.applyShift( stepVol, shift, fidTri3D.center(), scaleT, scaleR );
+					AlignmentFactory.applyShift( stepVol, shift, fidTri3D.center(), scaleT, scaleR );
 					//System.out.println("  "+stepVol.gemcString() );
 					//for( int j = 0; j < stepVol.getChildren().size(); j++ )
 						//System.out.println( stepVol.getChildren().get(j).gemcString() );
 				}
 				
-				SVTAlignmentFactory.applyShift( sectorVol, SVTConstants.getAlignmentShiftData()[SVTConstants.convertRegionSector2SvtIndex( aRegion, sector )], fidTri3D.center(), scaleT, scaleR );
+				AlignmentFactory.applyShift( sectorVol, SVTConstants.getAlignmentShiftData()[SVTConstants.convertRegionSector2SvtIndex( aRegion, sector )], fidTri3D.center(), scaleT, scaleR );
 				//System.out.println("S "+sectorVol.gemcString() );
 			}
 		}
@@ -468,7 +489,7 @@ public class SVTVolumeFactory
 	/**
 	 * Sets whether alignment shifts from CCDB should be applied to the geometry during generation.
 	 * 
-	 * @param boolean true/false
+	 * @param b true/false
 	 */
 	public void setApplyAlignmentShifts( boolean b )
 	{
