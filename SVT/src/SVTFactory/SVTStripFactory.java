@@ -10,14 +10,26 @@ public class SVTStripFactory
 	private boolean bShift = false; // switch to select whether alignment shifts are applied
 	private double scaleT = 1.0, scaleR = 1.0;
 	
-	
+	/**
+	 * Constructs a new geometry factory for sensor strips.
+	 * Please run {@code SVTConstants.connect() } first.
+	 * 
+	 * @param cp a DatabaseConstantProvider that has loaded the necessary tables
+	 * @param applyAlignmentShifts a switch to set whether the alignment shifts from CCDB will be applied
+	 */
 	public SVTStripFactory( ConstantProvider cp, boolean applyAlignmentShifts )
 	{
 		SVTConstants.load( cp );
 		if( applyAlignmentShifts ){ bShift = true; SVTConstants.loadAlignmentShifts( cp ); }
 	}
 	
-	
+	/**
+	 * Constructs a new geometry factory for sensor strips.
+	 * Please run {@code SVTConstants.connect() } first.
+	 * 
+	 * @param cp a DatabaseConstantProvider that has loaded the necessary tables
+	 * @param filenameAlignmentShifts a file containing the alignment shifts to be applied
+	 */
 	public SVTStripFactory( ConstantProvider cp, String filenameAlignmentShifts )
 	{
 		SVTConstants.load( cp );
@@ -64,49 +76,19 @@ public class SVTStripFactory
 		if( aSector < 0 || aSector > SVTConstants.NSECTORS[aRegion]-1 ){ throw new IllegalArgumentException("sector out of bounds"); }
 		if( aModule < 0 || aModule > SVTConstants.NMODULES-1 ){ throw new IllegalArgumentException("module out of bounds"); }
 		
-		Line3D stripLine = createNominalStrip( aStrip, aModule ); // strip end points are returned relative to the front edge along z, and the centre along x 
-		
 		//System.out.printf("%d %d %d %d\n", aRegion, aSector, aModule, aStrip);
 		
+		Line3D stripLine = createNominalStrip( aStrip, aModule ); // strip end points are returned relative to the front edge along z, and the centre along x 	
 		double r = SVTConstants.LAYERRADIUS[aRegion][aModule];
 		double z = SVTConstants.Z0ACTIVE[aRegion];
-		Transformation3D labFrame = SVTConstants.getLabFrame( aRegion, aSector, r, z );
-		labFrame.apply( stripLine ); // local frame -> lab frame
-		
-		// step 1: createStrip() in XZ plane
-		// step 2: rotate 90 deg
-		// step 3: shift along x axis by radius
-		// step 4: rotate to correct sector about target
-		//
-		//								y
-		//				  4 			^
-		//			   **.^ 			|
-		//			**_./   			|
-		//		 **_./ 		    		|
-		//		  /      				|
-		//		 ' 						|
-		//	   3 <--------------------- 2 <-._
-		//	   *						*     '. 
-		//	   *					    *       \
-		//	   *				        *       '
-		// x <-*-------------------***********--1--------------------
-		//	   *						*   
-		//	   *						*
-		//								|
-		//								|
-		//								|
-		//								|
-		//								|
-		//								|
-		//								|
-		//								|
+		SVTConstants.getLabFrame( aRegion, aSector, r, z ).apply( stripLine ); // local frame -> lab frame
 		
 		return stripLine;
 	}
 	
 	
 	/**
-	 * Returns a sensor strip.
+	 * Returns a sensor strip before any alignment shifts been applied.
 	 * 
 	 * @param aStrip an index starting from 0
 	 * @param aModule an index starting from 0
@@ -207,15 +189,18 @@ public class SVTStripFactory
 		Line3D stripLine = new Line3D( new Point3D( x0, 0.0, z0 ), new Point3D( x1, 0.0, z1 ) );
 		SVTConstants.getStripFrame( aModule == 0 ).apply( stripLine ); // strip frame -> local frame
 		
-		//Transformation3D transform = new Transformation3D();
-		//transform.translateXYZ( -SVTConstants.ACTIVESENWID/2, 0, 0 ); // move to centre along x
-		//if( aModule == 0 ) { transform.rotateZ( Math.toRadians(180) ); } // flip U layer
-		//transform.apply( stripLine );
-		
-		return stripLine;
+		return stripLine; // strip end points are returned relative to the front edge along z, and the centre along x
 	}
 	
-	
+	/**
+	 * Returns a sensor strip after the alignment shifts been applied.
+	 * 
+	 * @param aRegion an index starting from 0
+	 * @param aSector an index starting from 0
+	 * @param aStrip an index starting from 0
+	 * @param aModule an index starting from 0
+	 * @return Line3D a strip in the lab frame
+	 */
 	public Line3D getShiftedStrip( int aRegion, int aSector, int aStrip, int aModule )
 	{
 		Line3D stripLine = getNominalStrip( aRegion, aSector, aStrip, aModule );
@@ -224,18 +209,34 @@ public class SVTStripFactory
 		return stripLine;
 	}
 	
-	
+	/**
+	 * Returns a sensor strip after the alignment shifts been applied.
+	 * 
+	 * @param aRegion an index starting from 0
+	 * @param aSector an index starting from 0
+	 * @param aStrip an index starting from 0
+	 * @param aModule an index starting from 0
+	 * @return Line3D a strip in the local frame
+	 */
 	public Line3D createShiftedStrip( int aRegion, int aSector, int aStrip, int aModule )
 	{
 		Line3D stripLine = getShiftedStrip( aRegion, aSector, aStrip, aModule );
+		
 		double r = SVTConstants.LAYERRADIUS[aRegion][aModule];
 		double z = SVTConstants.Z0ACTIVE[aRegion];
-		Transformation3D labFrame = SVTConstants.getLabFrame( aRegion, aSector, r, z );
-		labFrame.inverse().apply( stripLine ); // lab frame -> local frame
+		SVTConstants.getLabFrame( aRegion, aSector, r, z ).inverse().apply( stripLine ); // lab frame -> local frame
+		
 		return stripLine;
 	}
 	
-	
+	/**
+	 * Returns the corners of a sensor layer in the local frame.
+	 *  
+	 * @param aRegion an index starting from 0
+	 * @param aSector an index starting from 0
+	 * @param aModule an index starting from 0
+	 * @return Point3D[] array of corners in order ( origin, max width, max width & max length, max length )
+	 */
 	public Point3D[] getLayerCorners( int aRegion, int aSector, int aModule )
 	{
 		Point3D[] cornerPos3Ds = new Point3D[4];
@@ -245,7 +246,7 @@ public class SVTStripFactory
 		cornerPos3Ds[3] = new Point3D( 0, 0, SVTConstants.STRIPLENMAX );
 		
 		Transformation3D stripFrame = SVTConstants.getStripFrame( aModule == 0 );
-		for( int i = 0; i < 4; i++ ){ stripFrame.apply( cornerPos3Ds[i] ); }
+		for( int i = 0; i < 4; i++ ){ stripFrame.apply( cornerPos3Ds[i] ); } // strip frame -> local frame
 		
 		return cornerPos3Ds;
 	}

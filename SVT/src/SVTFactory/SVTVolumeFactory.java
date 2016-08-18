@@ -26,10 +26,17 @@ public class SVTVolumeFactory
 	private boolean bShift = false; // switch to select whether alignment shifts are applied
 	private double scaleT = 1.0, scaleR = 1.0;
 	
-	public SVTVolumeFactory( ConstantProvider cp, boolean bApplyAlignmentShifts )
+	/**
+	 * Constructs a new geometry factory for detector volumes.
+	 * Please run {@code SVTConstants.connect() } first.
+	 * 
+	 * @param cp a DatabaseConstantProvider that has loaded the necessary tables
+	 * @param applyAlignmentShifts a switch to set whether the alignment shifts from CCDB will be applied
+	 */
+	public SVTVolumeFactory( ConstantProvider cp, boolean applyAlignmentShifts )
 	{
 		SVTConstants.load( cp );
-		setApplyAlignmentShifts( bApplyAlignmentShifts );
+		setApplyAlignmentShifts( applyAlignmentShifts );
 		if( bShift == true ){ SVTConstants.loadAlignmentShifts( cp ); }
 		
 		sectorMin = new int[SVTConstants.NREGIONS];

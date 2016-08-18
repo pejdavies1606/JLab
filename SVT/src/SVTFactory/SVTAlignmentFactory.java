@@ -17,7 +17,7 @@ import Misc.Matrix;
 import Misc.Util;
 
 /**
- * Processes fiducial survey data into alignment shifts. 
+ * Processes fiducial survey data into alignment shifts, and applies those shifts to a given point or volume.
  * 
  * @author pdavies
  */
@@ -489,20 +489,5 @@ public class SVTAlignmentFactory
 	{
 		return dataSurveyMeasured;
 	}
-	
-	
-	
-	/*private static void _fixMissingSurveyData()
-	{
-		// R171 (Region 1, Sector 7, Fid Cu1) is missing data, and was manually set to (0,0,0) in the data file
-		// replace missing data with nominal, expected data
-		int r = 0, s = 6, f = 0;
-		int k = SVTConstants.convertRegionSectorFid2SurveyIndex( r, s, f );
-		for( int i = 0; i < 3; i++ )
-		{
-			dataSurveyIdeals[k][i] = dataNominal[k][i];
-			dataSurveyMeasured[k][i] = dataNominal[k][i];
-		}
-	}*/
 }
 

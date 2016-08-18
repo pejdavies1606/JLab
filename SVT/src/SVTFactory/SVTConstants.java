@@ -3,6 +3,7 @@ package SVTFactory;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
+import org.jlab.clasrec.utils.DatabaseConstantProvider;
 import org.jlab.geom.base.ConstantProvider;
 import org.jlab.geom.prim.Transformation3D;
 
@@ -66,12 +67,31 @@ public class SVTConstants
 	public static double LAYERGAPTHK; // distance between pairs of layers within a sector
 	public static double MODULELEN;    // || DZ |  AZ  | DZ |MG| DZ |  AZ  | DZ |MG| DZ |  AZ  || DZ ||
 	public static double STRIPLENMAX;  //      ||  AZ  | DZ |MG| DZ |  AZ  | DZ |MG| DZ |  AZ  ||
-	public static double MODULEWID; // || DZ | AZ | DZ || (along width)
+	public static double MODULEWID; // || DZ | AZ | DZ ||
 	
 	// data for alignment shifts
 	public static int NSHIFTDATARECLEN = 7;
 	private static double[][] SHIFTDATA = null;
 	private static String filenameShiftSurvey = null;
+	
+	/**
+	 * Connects a DatabaseConstantProvider to CCDB with run 10 and default variation.
+	 * Will be moved to DatabaseLoader at a later date.
+	 * 
+	 * @return ConstantProvider a ConstantProvider that has loaded the necessary tables
+	 */
+	public static ConstantProvider connect()
+	{
+		DatabaseConstantProvider cp = new DatabaseConstantProvider( 10, "default");
+		cp.loadTable( ccdbPath +"svt");
+		cp.loadTable( ccdbPath +"region");
+		cp.loadTable( ccdbPath +"support");
+		cp.loadTable( ccdbPath +"fiducial");
+		//cp.loadTable( ccdbPath +"material");
+		cp.loadTable( ccdbPath +"alignment");
+		cp.disconnect();
+		return cp;
+	}
 	
 	
 	/**
@@ -102,9 +122,9 @@ public class SVTConstants
 	/**
 	 * Reads all the necessary constants from CCDB into static variables.
 	 * Please use a DatabaseConstantProvider to access CCDB and load the following tables:
-	 * svt, region, support, fiducial, material.
+	 * svt, region, support, fiducial, material, alignment.
 	 *  
-	 * @param cp a ConstantProvider
+	 * @param cp a ConstantProvider that has loaded the necessary tables
 	 */
 	public static void load( ConstantProvider cp )
 	{
@@ -441,7 +461,35 @@ public class SVTConstants
 		if( aRegion < 0 || aRegion > NREGIONS-1 ){ throw new IllegalArgumentException("region out of bounds"); }
 		if( aSector < 0 || aSector > NSECTORS[aRegion]-1 ){ throw new IllegalArgumentException("sector out of bounds"); }
 		
-		double phi = -2.0*Math.PI/NSECTORS[aRegion]*aSector + PHI0; // location around target
+		// step 1: create point in XZ plane
+		// step 2: rotate 90 deg
+		// step 3: shift along x axis by radius
+		// step 4: rotate to correct sector about target
+		//
+		//								y
+		//				  4 			^
+		//			   **.^ 			|
+		//			**_./   			|
+		//		 **_./ 		    		|
+		//		  /      				|
+		//		 ' 						|
+		//	   3 <--------------------- 2 <-._
+		//	   *						*     '. 
+		//	   *					    *       \
+		//	   *				        *       '
+		// x <-*-------------------***********--1--------------------
+		//	   *						*   
+		//	   *						*
+		//								|
+		//								|
+		//								|
+		//								|
+		//								|
+		//								|
+		//								|
+		//								|
+		
+		double phi = -2.0*Math.PI/NSECTORS[aRegion]*aSector + PHI0;
 		Transformation3D labFrame = new Transformation3D();
 		labFrame.rotateZ( -SECTOR0 ).translateXYZ( aRadius, 0, aZ ).rotateZ( phi );
 		return labFrame;
